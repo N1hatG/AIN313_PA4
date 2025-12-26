@@ -1,0 +1,101 @@
+=== Shapelets + MLP (Random Shapelet Transform) ===
+
+[Hyperparameters]
+{
+  "RANDOM_SEED": 42,
+  "USE_CONF": false,
+  "NUM_SHAPELETS": 128,
+  "LEN_MIN": 20,
+  "LEN_MAX": 80,
+  "MAX_TRAIN_PER_CLASS": 60,
+  "MLP_HIDDEN": [
+    256,
+    128
+  ],
+  "MLP_MAX_ITER": 80,
+  "MLP_LR": 0.001,
+  "test_size": 0.2,
+  "MACRO_F1": 0.6679895909369816,
+  "WEIGHTED_F1": 0.6679895909369817,
+  "TOP_CONFUSIONS": "running -> walking : 7\njogging -> walking : 7\njogging -> running : 6\nhandwaving -> handclapping : 5\nwalking -> running : 3\nwalking -> jogging : 3\nhandclapping -> handwaving : 3\nrunning -> jogging : 2\nrunning -> boxing : 1\nhandwaving -> boxing : 1",
+  "PER_CLASS_TABLE": "class            prec    rec     f1   supp\n------------------------------------------\nboxing          0.905  0.950  0.927     20\nhandclapping    0.739  0.850  0.791     20\nhandwaving      0.824  0.700  0.757     20\njogging         0.583  0.350  0.438     20\nrunning         0.526  0.500  0.513     20\nwalking         0.500  0.700  0.583     20"
+}
+
+[Split / Data]
+{
+  "total_files": 599,
+  "train_files_before_cap": 479,
+  "test_files": 120,
+  "train_sequences_after_cap": 360,
+  "class_names": [
+    "boxing",
+    "handclapping",
+    "handwaving",
+    "jogging",
+    "running",
+    "walking"
+  ]
+}
+
+[Timings (seconds)]
+{
+  "load_data": 0.5007,
+  "sample_shapelets": 0.0054,
+  "transform_train": 297.3294,
+  "transform_test": 98.2728,
+  "mlp_fit": 0.3809,
+  "eval": 0.0,
+  "total": 396.4912
+}
+
+[Accuracy]
+0.675000
+
+[Confusion Matrix]
+               pred_boxing pred_handclappingpred_handwavingpred_joggingpred_runningpred_walking
+true_BX        19          1           0           0           0           0           
+true_HC        0         17          3           0           0           0           
+true_HW        1           5           14          0           0           0           
+true_JG        0           0           0           7           6           7           
+true_RN        1           0           0           2           10          7           
+true_WK        0           0           0           3           3           14          
+
+[Classification Report]
+              precision    recall  f1-score   support
+
+      boxing     0.9048    0.9500    0.9268        20
+handclapping     0.7391    0.8500    0.7907        20
+  handwaving     0.8235    0.7000    0.7568        20
+     jogging     0.5833    0.3500    0.4375        20
+     running     0.5263    0.5000    0.5128        20
+     walking     0.5000    0.7000    0.5833        20
+
+    accuracy                         0.6750       120
+   macro avg     0.6795    0.6750    0.6680       120
+weighted avg     0.6795    0.6750    0.6680       120
+
+Macro F1: 0.6679895909369816
+Weighted F1: 0.6679895909369817
+
+[Top Confusions]
+running -> walking : 7
+jogging -> walking : 7
+jogging -> running : 6
+handwaving -> handclapping : 5
+walking -> running : 3
+walking -> jogging : 3
+handclapping -> handwaving : 3
+running -> jogging : 2
+running -> boxing : 1
+handwaving -> boxing : 1
+
+[Per-class Table]
+class            prec    rec     f1   supp
+------------------------------------------
+boxing          0.905  0.950  0.927     20
+handclapping    0.739  0.850  0.791     20
+handwaving      0.824  0.700  0.757     20
+jogging         0.583  0.350  0.438     20
+running         0.526  0.500  0.513     20
+walking         0.500  0.700  0.583     20
+

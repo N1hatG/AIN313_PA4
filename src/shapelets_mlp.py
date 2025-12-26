@@ -46,11 +46,20 @@ LABELS: Dict[str, int] = {
 }
 INV_LABELS = {v: k for k, v in LABELS.items()}
 
+SHORT_LABELS = {
+    "boxing": "BX",
+    "handclapping": "HC",
+    "handwaving": "HW",
+    "jogging": "JG",
+    "running": "RN",
+    "walking": "WK",
+}
+
 
 # HYPERPARAMS
 RANDOM_SEED = 42
 
-NUM_SHAPELETS = 64
+NUM_SHAPELETS = 128
 LEN_MIN = 20
 LEN_MAX = 80
 MAX_TRAIN_PER_CLASS = 60  # cap train size for speed; set None for full run later
@@ -230,40 +239,40 @@ def save_results_txt(
 ) -> None:
     run_path.parent.mkdir(parents=True, exist_ok=True)
     with run_path.open("w", encoding="utf-8") as f:
-        f.write("=== Shapelets + MLP (Random Shapelet Transform) ===\n\n")
+        f.write("=== Shapelets + MLP (Random Shapelet Transform) ===\n \n")
 
         f.write("[Hyperparameters]\n")
         f.write(json.dumps(hyperparams, indent=2))
-        f.write("\n\n")
+        f.write("\n \n")
 
         f.write("[Split / Data]\n")
         f.write(json.dumps(split_info, indent=2))
-        f.write("\n\n")
+        f.write("\n \n")
 
         f.write("[Timings (seconds)]\n")
         f.write(json.dumps(timings, indent=2))
-        f.write("\n\n")
+        f.write("\n \n")
 
         f.write(f"[Accuracy]\n{acc:.6f}\n\n")
 
         f.write("[Confusion Matrix]\n")
-        f.write(str(cm))
-        f.write("\n\n")
+        f.write(pretty_confusion_matrix(cm))
+        f.write("\n \n")
 
         f.write("[Classification Report]\n")
         f.write(report)
         f.write("\n")
 
         f.write(f"Macro F1: {hyperparams.get('MACRO_F1', 'NA')}\n")
-        f.write(f"Weighted F1: {hyperparams.get('WEIGHTED_F1', 'NA')}\n\n")
+        f.write(f"Weighted F1: {hyperparams.get('WEIGHTED_F1', 'NA')}\n \n")
 
         f.write("[Top Confusions]\n")
         f.write(hyperparams.get("TOP_CONFUSIONS", "(NA)"))
-        f.write("\n\n")
+        f.write("\n \n")
 
         f.write("[Per-class Table]\n")
         f.write(hyperparams.get("PER_CLASS_TABLE", "(NA)"))
-        f.write("\n\n")
+        f.write("\n \n")
 
 
 
@@ -484,6 +493,20 @@ def top_confusions(cm: np.ndarray, k: int = 8) -> str:
         lines.append(f"{INV_LABELS[i]} -> {INV_LABELS[j]} : {cnt}")
     return "\n".join(lines) if lines else "(no confusions)"
 
+def pretty_confusion_matrix(cm: np.ndarray) -> str:
+    labels = [INV_LABELS[i] for i in range(len(INV_LABELS))]
+    short = [SHORT_LABELS[l] for l in labels]
+
+    header = " " * 8 + "".join(f"{s:>6}" for s in short)
+    lines = [header]
+
+    for i, row in enumerate(cm):
+        line = f"{short[i]:<6} |"
+        for v in row:
+            line += f"{v:>6}"
+        lines.append(line)
+
+    return "\n".join(lines)
 
 if __name__ == "__main__":
     main()

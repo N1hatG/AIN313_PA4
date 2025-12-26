@@ -56,19 +56,59 @@ SHORT_LABELS = {
 }
 
 
-# HYPERPARAMS
+# SIGNLE RUN HYPERPARAMS
 RANDOM_SEED = 42
 
 NUM_SHAPELETS = 128
-LEN_MIN = 20
-LEN_MAX = 80
-MAX_TRAIN_PER_CLASS = 60  # cap train size for speed; set None for full run later
+LEN_MIN = 25
+LEN_MAX = 60
+MAX_TRAIN_PER_CLASS = 100  # cap train size for speed; set None for full run later
 
 MLP_HIDDEN = (256, 128)
 MLP_MAX_ITER = 80
 MLP_LR = 1e-3
 
 USE_CONF = False  # keep False for speed (D=50). True => D=75
+RUN_HYPERPARAM_MULTI_RUN = True #True runs multi-run test, False runs with SINGLE RUN PARAMS ABOVE
+
+# Hyperparameter multi-run configs 
+# Keep this list small to avoid long runtime. or the runnnsss foreveeeerrrr
+HYPERPARAM_SWEEP = [
+    # 1) Same K, try more training iterations (sometimes helps MLP converge)
+    {"NUM_SHAPELETS": 128, "LEN_MIN": 20, "LEN_MAX": 80, "MAX_TRAIN_PER_CLASS": 60,
+     "MLP_HIDDEN": (256, 128), "MLP_LR": 1e-3, "MLP_MAX_ITER": 120, "USE_CONF": False},
+
+    # 2) Shorter shapelets (might help rhythmic actions; can reduce jogging/running confusion)
+    {"NUM_SHAPELETS": 128, "LEN_MIN": 15, "LEN_MAX": 50, "MAX_TRAIN_PER_CLASS": 60,
+     "MLP_HIDDEN": (256, 128), "MLP_LR": 1e-3, "MLP_MAX_ITER": 120, "USE_CONF": False},
+
+    # 3) Medium lengths (often a good sweet spot)
+    {"NUM_SHAPELETS": 128, "LEN_MIN": 25, "LEN_MAX": 60, "MAX_TRAIN_PER_CLASS": 60,
+     "MLP_HIDDEN": (256, 128), "MLP_LR": 1e-3, "MLP_MAX_ITER": 120, "USE_CONF": False},
+
+    # 4) Bigger MLP (transform dominates time anyway; MLP change is cheap)
+    {"NUM_SHAPELETS": 128, "LEN_MIN": 20, "LEN_MAX": 80, "MAX_TRAIN_PER_CLASS": 60,
+     "MLP_HIDDEN": (512, 256), "MLP_LR": 1e-3, "MLP_MAX_ITER": 150, "USE_CONF": False},
+
+    # 5) Try confidence channel but keep K small to avoid runtime blow-up
+    {"NUM_SHAPELETS": 64, "LEN_MIN": 20, "LEN_MAX": 80, "MAX_TRAIN_PER_CLASS": 60,
+     "MLP_HIDDEN": (256, 128), "MLP_LR": 1e-3, "MLP_MAX_ITER": 120, "USE_CONF": True},
+
+    # 6) Slightly smaller LR (sometimes stabilizes MLP)
+    {"NUM_SHAPELETS": 128, "LEN_MIN": 20, "LEN_MAX": 80, "MAX_TRAIN_PER_CLASS": 60,
+     "MLP_HIDDEN": (256, 128), "MLP_LR": 5e-4, "MLP_MAX_ITER": 150, "USE_CONF": False},
+]
+
+_SINGLE_RUN_CFG = {
+    "NUM_SHAPELETS": NUM_SHAPELETS,
+    "LEN_MIN": LEN_MIN,
+    "LEN_MAX": LEN_MAX,
+    "MAX_TRAIN_PER_CLASS": MAX_TRAIN_PER_CLASS,
+    "MLP_HIDDEN": MLP_HIDDEN,
+    "MLP_LR": MLP_LR,
+    "MLP_MAX_ITER": MLP_MAX_ITER,
+    "USE_CONF": USE_CONF,
+}
 
 
 # Utilities
@@ -157,8 +197,6 @@ def min_dist_to_shapelet(series: np.ndarray, shapelet: Shapelet, eps: float = 1e
     # Euclidean norm over (L,D)
     dist = np.linalg.norm(diff, axis=(1, 2)) / L        # (W,)
     return float(dist.min())
-
-
 
 def sample_shapelets(
     X_train: List[np.ndarray],
@@ -283,7 +321,7 @@ def main() -> None:
     all_files = list_npz_toggle_check()
     y_for_split = np.array([LABELS[p.parent.name] for p in all_files], dtype=np.int32)
 
-    t0 = time.time()
+    # IMPORTANT: use ONE fixed split for all runs
     train_files, test_files = train_test_split(
         all_files,
         test_size=0.2,
@@ -291,143 +329,161 @@ def main() -> None:
         stratify=y_for_split,
     )
 
-    # Load sequences
-    t_load0 = time.time()
-    X_train, y_train = load_dataset(train_files, use_conf=USE_CONF)
-    X_test, y_test = load_dataset(test_files, use_conf=USE_CONF)
-    t_load1 = time.time()
+    runs = HYPERPARAM_SWEEP if RUN_HYPERPARAM_MULTI_RUN else [_SINGLE_RUN_CFG]
 
-    # Cap training per class (speed)
-    if MAX_TRAIN_PER_CLASS is not None:
-        keep_idx: List[int] = []
-        for c in sorted(set(y_train.tolist())):
-            idx = np.where(y_train == c)[0].tolist()
-            random.shuffle(idx)
-            keep_idx.extend(idx[:MAX_TRAIN_PER_CLASS])
-        keep_idx = sorted(keep_idx)
-        X_train = [X_train[i] for i in keep_idx]
-        y_train = y_train[keep_idx]
+    print(f"Total files: {len(all_files)} | Train files: {len(train_files)} | Test files: {len(test_files)}")
+    print(f"Planned sweep runs: {len(runs)}")
 
-    # Sample shapelets on TRAIN ONLY
-    t_samp0 = time.time()
-    shapelets = sample_shapelets(
-        X_train, y_train,
-        num_shapelets=NUM_SHAPELETS,
-        len_min=LEN_MIN,
-        len_max=LEN_MAX,
-        seed=RANDOM_SEED,
-    )
-    t_samp1 = time.time()
+    for run_idx, cfg in enumerate(runs, start=1):
+        NUM_SHAPELETS = int(cfg["NUM_SHAPELETS"])
+        LEN_MIN = int(cfg["LEN_MIN"])
+        LEN_MAX = int(cfg["LEN_MAX"])
+        MAX_TRAIN_PER_CLASS = cfg["MAX_TRAIN_PER_CLASS"]
+        MLP_HIDDEN = tuple(cfg["MLP_HIDDEN"])
+        MLP_LR = float(cfg["MLP_LR"])
+        MLP_MAX_ITER = int(cfg["MLP_MAX_ITER"])
+        USE_CONF = bool(cfg["USE_CONF"])
 
-    # Transform
-    t_tr0 = time.time()
-    Xtr_feat = transform_with_shapelets(X_train, shapelets, show_progress=True)
-    t_tr1 = time.time()
+        t0 = time.time()
 
-    t_te0 = time.time()
-    Xte_feat = transform_with_shapelets(X_test, shapelets, show_progress=True)
-    t_te1 = time.time()
+        # Load sequences
+        t_load0 = time.time()
+        X_train, y_train = load_dataset(train_files, use_conf=USE_CONF)
+        X_test, y_test = load_dataset(test_files, use_conf=USE_CONF)
+        t_load1 = time.time()
 
-    # Train MLP
-    t_fit0 = time.time()
-    clf = MLPClassifier(
-        hidden_layer_sizes=MLP_HIDDEN,
-        activation="relu",
-        solver="adam",
-        learning_rate_init=MLP_LR,
-        max_iter=MLP_MAX_ITER,
-        random_state=RANDOM_SEED,
-        verbose=False,
-    )
-    clf.fit(Xtr_feat, y_train)
-    t_fit1 = time.time()
+        # Cap training per class (speed)
+        if MAX_TRAIN_PER_CLASS is not None:
+            keep_idx: List[int] = []
+            for c in sorted(set(y_train.tolist())):
+                idx = np.where(y_train == c)[0].tolist()
+                random.shuffle(idx)
+                keep_idx.extend(idx[:MAX_TRAIN_PER_CLASS])
+            keep_idx = sorted(keep_idx)
+            X_train = [X_train[i] for i in keep_idx]
+            y_train = y_train[keep_idx]
 
-    # Evaluate
-    t_eval0 = time.time()
-    pred = clf.predict(Xte_feat)
-    acc = accuracy_score(y_test, pred)
-    cm = confusion_matrix(y_test, pred)
-    report = classification_report(
-        y_test, pred,
-        target_names=[INV_LABELS[i] for i in range(len(INV_LABELS))],
-        digits=4,
-    )
-    t_eval1 = time.time()
-    t1 = time.time()
+        # Sample shapelets on TRAIN ONLY
+        t_samp0 = time.time()
+        shapelets = sample_shapelets(
+            X_train, y_train,
+            num_shapelets=NUM_SHAPELETS,
+            len_min=LEN_MIN,
+            len_max=LEN_MAX,
+            seed=RANDOM_SEED,
+        )
+        t_samp1 = time.time()
 
-    macro_f1 = f1_score(y_test, pred, average="macro")
-    weighted_f1 = f1_score(y_test, pred, average="weighted")
+        # Transform
+        t_tr0 = time.time()
+        Xtr_feat = transform_with_shapelets(X_train, shapelets, show_progress=True)
+        t_tr1 = time.time()
 
-    print("\n=== Shapelets + MLP (Readable Summary) ===")
-    print(f"Accuracy     : {acc:.3f}")
-    print(f"Macro F1     : {macro_f1:.3f}")
-    print(f"Weighted F1  : {weighted_f1:.3f}")
+        t_te0 = time.time()
+        Xte_feat = transform_with_shapelets(X_test, shapelets, show_progress=True)
+        t_te1 = time.time()
 
-    print("\n[Per-class]")
-    print(per_class_table(y_test, pred))
+        # Train MLP
+        t_fit0 = time.time()
+        clf = MLPClassifier(
+            hidden_layer_sizes=MLP_HIDDEN,
+            activation="relu",
+            solver="adam",
+            learning_rate_init=MLP_LR,
+            max_iter=MLP_MAX_ITER,
+            random_state=RANDOM_SEED,
+            verbose=False,
+        )
+        clf.fit(Xtr_feat, y_train)
+        t_fit1 = time.time()
 
-    print("\n[Top confusions]")
-    print(top_confusions(cm, k=10))
+        # Evaluate
+        t_eval0 = time.time()
+        pred = clf.predict(Xte_feat)
+        acc = accuracy_score(y_test, pred)
+        cm = confusion_matrix(y_test, pred)
+        report = classification_report(
+            y_test, pred,
+            target_names=[INV_LABELS[i] for i in range(len(INV_LABELS))],
+            digits=4,
+        )
+        t_eval1 = time.time()
+        t1 = time.time()
 
-    print("\n[Timings]")
-    print(f"Load data       : {format_seconds(t_load1 - t_load0)}")
-    print(f"Sample shapelets: {format_seconds(t_samp1 - t_samp0)}")
-    print(f"Transform train : {format_seconds(t_tr1 - t_tr0)}")
-    print(f"Transform test  : {format_seconds(t_te1 - t_te0)}")
-    print(f"MLP fit         : {format_seconds(t_fit1 - t_fit0)}")
-    print(f"Eval            : {format_seconds(t_eval1 - t_eval0)}")
-    print(f"TOTAL           : {format_seconds(t1 - t0)}")
+        macro_f1 = f1_score(y_test, pred, average="macro")
+        weighted_f1 = f1_score(y_test, pred, average="weighted")
 
+        print("\n============================================================")
+        print(f"RUN {run_idx}/{len(runs)}")
+        print(f"K={NUM_SHAPELETS} | L={LEN_MIN}-{LEN_MAX} | cap={MAX_TRAIN_PER_CLASS} | conf={USE_CONF}")
+        print(f"MLP={MLP_HIDDEN} | lr={MLP_LR} | iters={MLP_MAX_ITER}")
+        print("------------------------------------------------------------")
+        print(f"Accuracy     : {acc:.3f}")
+        print(f"Macro F1     : {macro_f1:.3f}")
+        print(f"Weighted F1  : {weighted_f1:.3f}")
+        print("\n[Top confusions]")
+        print(top_confusions(cm, k=10))
 
-    # Save results
-    timestamp = time.strftime("%Y%m%d_%H%M%S")
-    run_txt = RESULTS_DIR / f"run_{timestamp}_seed{RANDOM_SEED}.txt"
+        # Save results (filename includes key hyperparams so you can distinguish easily)
+        timestamp = time.strftime("%Y%m%d_%H%M%S")
+        tag = (
+            f"run{run_idx:02d}"
+            f"_K{NUM_SHAPELETS}"
+            f"_L{LEN_MIN}-{LEN_MAX}"
+            f"_cap{MAX_TRAIN_PER_CLASS if MAX_TRAIN_PER_CLASS is not None else 'ALL'}"
+            f"_conf{int(USE_CONF)}"
+            f"_mlp{'x'.join(map(str, MLP_HIDDEN))}"
+            f"_lr{MLP_LR:g}"
+            f"_it{MLP_MAX_ITER}"
+            f"_seed{RANDOM_SEED}"
+        )
+        run_txt = RESULTS_DIR / f"{timestamp}_{tag}.txt"
 
-    hyperparams = {
-        "RANDOM_SEED": RANDOM_SEED,
-        "USE_CONF": USE_CONF,
-        "NUM_SHAPELETS": NUM_SHAPELETS,
-        "LEN_MIN": LEN_MIN,
-        "LEN_MAX": LEN_MAX,
-        "MAX_TRAIN_PER_CLASS": MAX_TRAIN_PER_CLASS,
-        "MLP_HIDDEN": list(MLP_HIDDEN),
-        "MLP_MAX_ITER": MLP_MAX_ITER,
-        "MLP_LR": MLP_LR,
-        "test_size": 0.2,
+        hyperparams = {
+            "RANDOM_SEED": RANDOM_SEED,
+            "USE_CONF": USE_CONF,
+            "NUM_SHAPELETS": NUM_SHAPELETS,
+            "LEN_MIN": LEN_MIN,
+            "LEN_MAX": LEN_MAX,
+            "MAX_TRAIN_PER_CLASS": MAX_TRAIN_PER_CLASS,
+            "MLP_HIDDEN": list(MLP_HIDDEN),
+            "MLP_MAX_ITER": MLP_MAX_ITER,
+            "MLP_LR": MLP_LR,
+            "test_size": 0.2,
 
-        # Extra readable metrics/text blobs
-        "MACRO_F1": float(macro_f1),
-        "WEIGHTED_F1": float(weighted_f1),
-        "TOP_CONFUSIONS": top_confusions(cm, k=10),
-        "PER_CLASS_TABLE": per_class_table(y_test, pred),
-    }
-    split_info = {
-        "total_files": len(all_files),
-        "train_files_before_cap": len(train_files),
-        "test_files": len(test_files),
-        "train_sequences_after_cap": len(X_train),
-        "class_names": list(LABELS.keys()),
-    }
-    timings = {
-        "load_data": round(t_load1 - t_load0, 4),
-        "sample_shapelets": round(t_samp1 - t_samp0, 4),
-        "transform_train": round(t_tr1 - t_tr0, 4),
-        "transform_test": round(t_te1 - t_te0, 4),
-        "mlp_fit": round(t_fit1 - t_fit0, 4),
-        "eval": round(t_eval1 - t_eval0, 4),
-        "total": round(t1 - t0, 4),
-    }
+            # Extra readable metrics/text blobs
+            "MACRO_F1": float(macro_f1),
+            "WEIGHTED_F1": float(weighted_f1),
+            "TOP_CONFUSIONS": top_confusions(cm, k=10),
+            "PER_CLASS_TABLE": per_class_table(y_test, pred),
+        }
+        split_info = {
+            "total_files": len(all_files),
+            "train_files_before_cap": len(train_files),
+            "test_files": len(test_files),
+            "train_sequences_after_cap": len(X_train),
+            "class_names": list(LABELS.keys()),
+        }
+        timings = {
+            "load_data": round(t_load1 - t_load0, 4),
+            "sample_shapelets": round(t_samp1 - t_samp0, 4),
+            "transform_train": round(t_tr1 - t_tr0, 4),
+            "transform_test": round(t_te1 - t_te0, 4),
+            "mlp_fit": round(t_fit1 - t_fit0, 4),
+            "eval": round(t_eval1 - t_eval0, 4),
+            "total": round(t1 - t0, 4),
+        }
 
-    save_results_txt(
-        run_path=run_txt,
-        hyperparams=hyperparams,
-        split_info=split_info,
-        timings=timings,
-        acc=acc,
-        cm=cm,
-        report=report,
-    )
-    print(f"\nSaved results to: {run_txt}")
+        save_results_txt(
+            run_path=run_txt,
+            hyperparams=hyperparams,
+            split_info=split_info,
+            timings=timings,
+            acc=acc,
+            cm=cm,
+            report=report,
+        )
+        print(f"\nSaved results to: {run_txt}")
 
 
 def list_npz_toggle_check() -> List[Path]:

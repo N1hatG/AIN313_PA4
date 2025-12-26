@@ -38,7 +38,7 @@ from torch.utils.data import DataLoader, TensorDataset
 # Paths / labels
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 NPZ_ROOT = PROJECT_ROOT / "data" / "poses_npz"
-RESULTS_DIR = PROJECT_ROOT / "shapelets_mlp_results"
+RESULTS_DIR = PROJECT_ROOT / "shapelets_mlp_results" / "based_on_20251226_214457_run05_K64_L20-80_cap60_conf1_mlp256x128_lr0.001_ep120_seed42.pt"
 
 LABELS: Dict[str, int] = {
     "boxing": 0,

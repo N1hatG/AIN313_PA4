@@ -78,28 +78,41 @@ RUN_HYPERPARAM_MULTI_RUN = True #True runs multi-run test, False runs with SINGL
 # Hyperparameter multi-run configs
 # Keep this list small to avoid long runtime. or the runnnsss foreveeeerrrr
 HYPERPARAM_SWEEP = [
-
-    {"NUM_SHAPELETS": 128, "LEN_MIN": 20, "LEN_MAX": 80, "MAX_TRAIN_PER_CLASS": 60,
-     "MLP_HIDDEN": (256, 128), "MLP_LR": 1e-3, "MLP_MAX_ITER": 120, "USE_CONF": False},
-
-
-    {"NUM_SHAPELETS": 128, "LEN_MIN": 15, "LEN_MAX": 50, "MAX_TRAIN_PER_CLASS": 60,
-     "MLP_HIDDEN": (256, 128), "MLP_LR": 1e-3, "MLP_MAX_ITER": 120, "USE_CONF": False},
-
-
-    {"NUM_SHAPELETS": 128, "LEN_MIN": 25, "LEN_MAX": 60, "MAX_TRAIN_PER_CLASS": 60,
-     "MLP_HIDDEN": (256, 128), "MLP_LR": 1e-3, "MLP_MAX_ITER": 120, "USE_CONF": False},
-
-    {"NUM_SHAPELETS": 128, "LEN_MIN": 20, "LEN_MAX": 80, "MAX_TRAIN_PER_CLASS": 60,
-     "MLP_HIDDEN": (512, 256), "MLP_LR": 1e-3, "MLP_MAX_ITER": 150, "USE_CONF": False},
-
-
-    {"NUM_SHAPELETS": 64, "LEN_MIN": 20, "LEN_MAX": 80, "MAX_TRAIN_PER_CLASS": 60,
+    {"NUM_SHAPELETS": 32,  "LEN_MIN": 20, "LEN_MAX": 80, "MAX_TRAIN_PER_CLASS": 60,
      "MLP_HIDDEN": (256, 128), "MLP_LR": 1e-3, "MLP_MAX_ITER": 120, "USE_CONF": True},
 
+    {"NUM_SHAPELETS": 48,  "LEN_MIN": 20, "LEN_MAX": 80, "MAX_TRAIN_PER_CLASS": 60,
+     "MLP_HIDDEN": (256, 128), "MLP_LR": 1e-3, "MLP_MAX_ITER": 120, "USE_CONF": True},
+
+    {"NUM_SHAPELETS": 64,  "LEN_MIN": 20, "LEN_MAX": 80, "MAX_TRAIN_PER_CLASS": 60,
+     "MLP_HIDDEN": (256, 128), "MLP_LR": 1e-3, "MLP_MAX_ITER": 120, "USE_CONF": True},
+
+    {"NUM_SHAPELETS": 96,  "LEN_MIN": 20, "LEN_MAX": 80, "MAX_TRAIN_PER_CLASS": 60,
+     "MLP_HIDDEN": (256, 128), "MLP_LR": 1e-3, "MLP_MAX_ITER": 120, "USE_CONF": True},
 
     {"NUM_SHAPELETS": 128, "LEN_MIN": 20, "LEN_MAX": 80, "MAX_TRAIN_PER_CLASS": 60,
-     "MLP_HIDDEN": (256, 128), "MLP_LR": 5e-4, "MLP_MAX_ITER": 150, "USE_CONF": False},
+     "MLP_HIDDEN": (256, 128), "MLP_LR": 1e-3, "MLP_MAX_ITER": 120, "USE_CONF": True},
+
+    {"NUM_SHAPELETS": 64,  "LEN_MIN": 15, "LEN_MAX": 45, "MAX_TRAIN_PER_CLASS": 60,
+     "MLP_HIDDEN": (256, 128), "MLP_LR": 1e-3, "MLP_MAX_ITER": 120, "USE_CONF": True},
+
+    {"NUM_SHAPELETS": 64,  "LEN_MIN": 20, "LEN_MAX": 50, "MAX_TRAIN_PER_CLASS": 60,
+     "MLP_HIDDEN": (256, 128), "MLP_LR": 1e-3, "MLP_MAX_ITER": 120, "USE_CONF": True},
+
+    {"NUM_SHAPELETS": 64,  "LEN_MIN": 25, "LEN_MAX": 55, "MAX_TRAIN_PER_CLASS": 60,
+     "MLP_HIDDEN": (256, 128), "MLP_LR": 1e-3, "MLP_MAX_ITER": 120, "USE_CONF": True},
+
+    {"NUM_SHAPELETS": 64,  "LEN_MIN": 30, "LEN_MAX": 70, "MAX_TRAIN_PER_CLASS": 60,
+     "MLP_HIDDEN": (256, 128), "MLP_LR": 1e-3, "MLP_MAX_ITER": 120, "USE_CONF": True},
+
+    {"NUM_SHAPELETS": 64,  "LEN_MIN": 40, "LEN_MAX": 80, "MAX_TRAIN_PER_CLASS": 60,
+     "MLP_HIDDEN": (256, 128), "MLP_LR": 1e-3, "MLP_MAX_ITER": 120, "USE_CONF": True},
+
+    {"NUM_SHAPELETS": 96,  "LEN_MIN": 20, "LEN_MAX": 50, "MAX_TRAIN_PER_CLASS": 60,
+     "MLP_HIDDEN": (256, 128), "MLP_LR": 1e-3, "MLP_MAX_ITER": 120, "USE_CONF": True},
+
+    {"NUM_SHAPELETS": 96,  "LEN_MIN": 25, "LEN_MAX": 55, "MAX_TRAIN_PER_CLASS": 60,
+     "MLP_HIDDEN": (256, 128), "MLP_LR": 1e-3, "MLP_MAX_ITER": 120, "USE_CONF": True},
 ]
 
 _SINGLE_RUN_CFG = {

@@ -27,6 +27,7 @@ from tqdm import tqdm
 from sklearn.model_selection import train_test_split
 from sklearn.neural_network import MLPClassifier
 from sklearn.metrics import accuracy_score, confusion_matrix, classification_report
+from sklearn.metrics import f1_score
 
 
 
@@ -52,7 +53,7 @@ RANDOM_SEED = 42
 NUM_SHAPELETS = 64
 LEN_MIN = 20
 LEN_MAX = 80
-MAX_TRAIN_PER_CLASS = 30  # cap train size for speed; set None for full run later
+MAX_TRAIN_PER_CLASS = 60  # cap train size for speed; set None for full run later
 
 MLP_HIDDEN = (256, 128)
 MLP_MAX_ITER = 80
@@ -115,12 +116,15 @@ def z_norm(ts: np.ndarray, eps: float = 1e-8) -> np.ndarray:
     return (ts - mu) / sd
 
 
-def min_dist_to_shapelet(series: np.ndarray, shapelet: Shapelet) -> float:
+def min_dist_to_shapelet(series: np.ndarray, shapelet: Shapelet, eps: float = 1e-8) -> float:
     """
-    series: (T,D), shapelet.pattern: (L,D)
-    Minimum z-normalized Euclidean distance over all windows of length L.
+    Vectorized version of min z-normalized Euclidean distance.
+    Same definition as before:
+      - For each window: z-norm per dimension over time
+      - dist = ||window - shapelet|| / L
+      - return min dist over all windows
     """
-    T, _ = series.shape
+    T, D = series.shape
     L = shapelet.length
 
     if T < L:
@@ -128,17 +132,23 @@ def min_dist_to_shapelet(series: np.ndarray, shapelet: Shapelet) -> float:
         series = np.concatenate([series, pad], axis=0)
         T = L
 
-    shp = shapelet.pattern
-    best = np.inf
+    # windows: (T-L+1, L, D)
+    windows = np.lib.stride_tricks.sliding_window_view(series, window_shape=(L, D))
+    # sliding_window_view gives (T-L+1, 1, L, D) for 2D input sometimes depending on numpy, so:
+    windows = windows.reshape(-1, L, D)
 
-    for start in range(0, T - L + 1):
-        window = series[start:start + L, :]
-        window = z_norm(window)
-        dist = np.linalg.norm(window - shp) / L
-        if dist < best:
-            best = dist
+    # z-norm each window per dimension
+    mu = windows.mean(axis=1, keepdims=True)            # (W,1,D)
+    sd = windows.std(axis=1, keepdims=True)             # (W,1,D)
+    sd = np.where(sd < eps, 1.0, sd)
+    windows_zn = (windows - mu) / sd
 
-    return float(best)
+    # shapelet.pattern: (L,D)
+    diff = windows_zn - shapelet.pattern[None, :, :]    # (W,L,D)
+    # Euclidean norm over (L,D)
+    dist = np.linalg.norm(diff, axis=(1, 2)) / L        # (W,)
+    return float(dist.min())
+
 
 
 def sample_shapelets(
@@ -244,6 +254,18 @@ def save_results_txt(
         f.write(report)
         f.write("\n")
 
+        f.write(f"Macro F1: {hyperparams.get('MACRO_F1', 'NA')}\n")
+        f.write(f"Weighted F1: {hyperparams.get('WEIGHTED_F1', 'NA')}\n\n")
+
+        f.write("[Top Confusions]\n")
+        f.write(hyperparams.get("TOP_CONFUSIONS", "(NA)"))
+        f.write("\n\n")
+
+        f.write("[Per-class Table]\n")
+        f.write(hyperparams.get("PER_CLASS_TABLE", "(NA)"))
+        f.write("\n\n")
+
+
 
 def main() -> None:
     np.random.seed(RANDOM_SEED)
@@ -324,10 +346,29 @@ def main() -> None:
     t_eval1 = time.time()
     t1 = time.time()
 
-    print("\n=== Shapelets + MLP Results ===")
-    print("Accuracy:", acc)
-    print("\nConfusion matrix:\n", cm)
-    print("\nReport:\n", report)
+    macro_f1 = f1_score(y_test, pred, average="macro")
+    weighted_f1 = f1_score(y_test, pred, average="weighted")
+
+    print("\n=== Shapelets + MLP (Readable Summary) ===")
+    print(f"Accuracy     : {acc:.3f}")
+    print(f"Macro F1     : {macro_f1:.3f}")
+    print(f"Weighted F1  : {weighted_f1:.3f}")
+
+    print("\n[Per-class]")
+    print(per_class_table(y_test, pred))
+
+    print("\n[Top confusions]")
+    print(top_confusions(cm, k=10))
+
+    print("\n[Timings]")
+    print(f"Load data       : {format_seconds(t_load1 - t_load0)}")
+    print(f"Sample shapelets: {format_seconds(t_samp1 - t_samp0)}")
+    print(f"Transform train : {format_seconds(t_tr1 - t_tr0)}")
+    print(f"Transform test  : {format_seconds(t_te1 - t_te0)}")
+    print(f"MLP fit         : {format_seconds(t_fit1 - t_fit0)}")
+    print(f"Eval            : {format_seconds(t_eval1 - t_eval0)}")
+    print(f"TOTAL           : {format_seconds(t1 - t0)}")
+
 
     # Save results
     timestamp = time.strftime("%Y%m%d_%H%M%S")
@@ -344,6 +385,12 @@ def main() -> None:
         "MLP_MAX_ITER": MLP_MAX_ITER,
         "MLP_LR": MLP_LR,
         "test_size": 0.2,
+
+        # Extra readable metrics/text blobs
+        "MACRO_F1": float(macro_f1),
+        "WEIGHTED_F1": float(weighted_f1),
+        "TOP_CONFUSIONS": top_confusions(cm, k=10),
+        "PER_CLASS_TABLE": per_class_table(y_test, pred),
     }
     split_info = {
         "total_files": len(all_files),
@@ -383,6 +430,59 @@ def list_npz_toggle_check() -> List[Path]:
     if bad:
         raise RuntimeError(f"Found NPZs in unknown class folders (check LABELS): e.g. {bad[0]}")
     return all_files
+
+
+#Helper functions for printing and saving reuslts
+def format_seconds(s: float) -> str:
+    if s < 60:
+        return f"{s:.1f}s"
+    m = int(s // 60)
+    r = s - 60 * m
+    return f"{m}m {r:.1f}s"
+
+
+def per_class_table(y_true: np.ndarray, y_pred: np.ndarray) -> str:
+    lines = []
+    header = f"{'class':<14} {'prec':>6} {'rec':>6} {'f1':>6} {'supp':>6}"
+    lines.append(header)
+    lines.append("-" * len(header))
+
+    # compute per-class metrics manually via report dict
+    rep = classification_report(
+        y_true, y_pred,
+        target_names=[INV_LABELS[i] for i in range(len(INV_LABELS))],
+        output_dict=True,
+        zero_division=0,
+    )
+
+    for i in range(len(INV_LABELS)):
+        name = INV_LABELS[i]
+        d = rep[name]
+        lines.append(
+            f"{name:<14} {d['precision']:>6.3f} {d['recall']:>6.3f} {d['f1-score']:>6.3f} {int(d['support']):>6}"
+        )
+    return "\n".join(lines)
+
+
+def top_confusions(cm: np.ndarray, k: int = 8) -> str:
+    """
+    Return top-k off-diagonal confusions like:
+    jogging -> running : 11
+    """
+    pairs = []
+    n = cm.shape[0]
+    for i in range(n):
+        for j in range(n):
+            if i == j:
+                continue
+            if cm[i, j] > 0:
+                pairs.append((cm[i, j], i, j))
+    pairs.sort(reverse=True)
+
+    lines = []
+    for cnt, i, j in pairs[:k]:
+        lines.append(f"{INV_LABELS[i]} -> {INV_LABELS[j]} : {cnt}")
+    return "\n".join(lines) if lines else "(no confusions)"
 
 
 if __name__ == "__main__":

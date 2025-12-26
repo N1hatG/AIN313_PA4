@@ -6,15 +6,6 @@ End-to-end extraction:
 - Runs OpenPose (GPU) to write per-frame JSON
 - Converts JSON -> pose arrays (T, 25, 3)
 - Saves one .npz per video under data/poses_npz/<class>/
-
-Fixes included:
-✅ GPU usage ensured (explicit --num_gpu 1)
-✅ Correct JSON frame ordering (sort by frame index)
-✅ Unique output filenames (prevents overwriting)
-✅ Resume-safe: validates existing NPZ; redoes if corrupted/partial
-✅ Better errors + progress bar
-✅ Optional: deletes per-video JSON after NPZ to save disk
-✅ Optional: forward-fill empty detections for smoother sequences
 """
 
 import json
@@ -27,9 +18,7 @@ from typing import Dict, List, Tuple
 import numpy as np
 from tqdm import tqdm
 
-# -----------------------------
 # Paths
-# -----------------------------
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 OPENPOSE_ROOT = PROJECT_ROOT / "tools" / "openpose"
 OPENPOSE_EXE = OPENPOSE_ROOT / "bin" / "OpenPoseDemo.exe"
@@ -38,9 +27,7 @@ DATASET_ROOT = PROJECT_ROOT / "data" / "raw_videos"
 TMP_JSON_ROOT = PROJECT_ROOT / "data" / "_tmp_openpose_json"
 OUT_NPZ_ROOT = PROJECT_ROOT / "data" / "poses_npz"
 
-# -----------------------------
-# Dataset labels (folder names must match)
-# -----------------------------
+# Dataset labels 
 LABELS: Dict[str, int] = {
     "boxing": 0,
     "handclapping": 1,
@@ -52,24 +39,20 @@ LABELS: Dict[str, int] = {
 
 VIDEO_EXTS = {".avi"}  # your dataset is .avi
 
-# -----------------------------
+
 # OpenPose settings
-# -----------------------------
 NET_RESOLUTION = "-1x256"       # speed/accuracy trade-off
 NUMBER_PEOPLE_MAX = "1"         # pick one person
 
 GPU_COUNT = "1"                 # force GPU usage
 GPU_START = "0"
 
-# -----------------------------
+
 # Behavior toggles
-# -----------------------------
 DELETE_JSON_AFTER_NPZ = False     # saves a LOT of disk space
 FORWARD_FILL_EMPTY = True        # smoother sequences if occasional missed detections
 
-# -----------------------------
 # Utilities
-# -----------------------------
 _FRAME_RE = re.compile(r"_(\d+)_keypoints\.json$")
 
 

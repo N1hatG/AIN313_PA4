@@ -38,7 +38,7 @@ from torch.utils.data import DataLoader, TensorDataset
 # Paths / labels
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 NPZ_ROOT = PROJECT_ROOT / "data" / "poses_npz"
-RESULTS_DIR = PROJECT_ROOT / "shapelets_mlp_results" / "based_on_20251226_214457_run05_K64_L20-80_cap60_conf1_mlp256x128_lr0.001_ep120_seed42.pt"
+RESULTS_DIR = PROJECT_ROOT / "shapelets_mlp_results" / "round_3_mlp_tuning"
 
 LABELS: Dict[str, int] = {
     "boxing": 0,
@@ -78,42 +78,49 @@ RUN_HYPERPARAM_MULTI_RUN = True #True runs multi-run test, False runs with SINGL
 # Hyperparameter multi-run configs
 # Keep this list small to avoid long runtime. or the runnnsss foreveeeerrrr
 HYPERPARAM_SWEEP = [
-    {"NUM_SHAPELETS": 32,  "LEN_MIN": 20, "LEN_MAX": 80, "MAX_TRAIN_PER_CLASS": 60,
-     "MLP_HIDDEN": (256, 128), "MLP_LR": 1e-3, "MLP_MAX_ITER": 120, "USE_CONF": True},
 
-    {"NUM_SHAPELETS": 48,  "LEN_MIN": 20, "LEN_MAX": 80, "MAX_TRAIN_PER_CLASS": 60,
-     "MLP_HIDDEN": (256, 128), "MLP_LR": 1e-3, "MLP_MAX_ITER": 120, "USE_CONF": True},
+    # 1) Control: your best-known baseline
+    {"NUM_SHAPELETS": 64, "LEN_MIN": 40, "LEN_MAX": 80, "MAX_TRAIN_PER_CLASS": 60,
+     "MLP_HIDDEN": (256, 128), "MLP_LR": 1e-3, "MLP_MAX_ITER": 200, "USE_CONF": True},
 
-    {"NUM_SHAPELETS": 64,  "LEN_MIN": 20, "LEN_MAX": 80, "MAX_TRAIN_PER_CLASS": 60,
-     "MLP_HIDDEN": (256, 128), "MLP_LR": 1e-3, "MLP_MAX_ITER": 120, "USE_CONF": True},
+    # 2-4) Shallower vs slightly different width (test if 2-layer is even necessary)
+    {"NUM_SHAPELETS": 64, "LEN_MIN": 40, "LEN_MAX": 80, "MAX_TRAIN_PER_CLASS": 60,
+     "MLP_HIDDEN": (256,), "MLP_LR": 1e-3, "MLP_MAX_ITER": 200, "USE_CONF": True},
 
-    {"NUM_SHAPELETS": 96,  "LEN_MIN": 20, "LEN_MAX": 80, "MAX_TRAIN_PER_CLASS": 60,
-     "MLP_HIDDEN": (256, 128), "MLP_LR": 1e-3, "MLP_MAX_ITER": 120, "USE_CONF": True},
+    {"NUM_SHAPELETS": 64, "LEN_MIN": 40, "LEN_MAX": 80, "MAX_TRAIN_PER_CLASS": 60,
+     "MLP_HIDDEN": (512,), "MLP_LR": 1e-3, "MLP_MAX_ITER": 200, "USE_CONF": True},
 
-    {"NUM_SHAPELETS": 128, "LEN_MIN": 20, "LEN_MAX": 80, "MAX_TRAIN_PER_CLASS": 60,
-     "MLP_HIDDEN": (256, 128), "MLP_LR": 1e-3, "MLP_MAX_ITER": 120, "USE_CONF": True},
+    {"NUM_SHAPELETS": 64, "LEN_MIN": 40, "LEN_MAX": 80, "MAX_TRAIN_PER_CLASS": 60,
+     "MLP_HIDDEN": (1024,), "MLP_LR": 1e-3, "MLP_MAX_ITER": 200, "USE_CONF": True},
 
-    {"NUM_SHAPELETS": 64,  "LEN_MIN": 15, "LEN_MAX": 45, "MAX_TRAIN_PER_CLASS": 60,
-     "MLP_HIDDEN": (256, 128), "MLP_LR": 1e-3, "MLP_MAX_ITER": 120, "USE_CONF": True},
+    # 5-8) Two-layer capacity variations around the baseline
+    {"NUM_SHAPELETS": 64, "LEN_MIN": 40, "LEN_MAX": 80, "MAX_TRAIN_PER_CLASS": 60,
+     "MLP_HIDDEN": (128, 64), "MLP_LR": 1e-3, "MLP_MAX_ITER": 200, "USE_CONF": True},
 
-    {"NUM_SHAPELETS": 64,  "LEN_MIN": 20, "LEN_MAX": 50, "MAX_TRAIN_PER_CLASS": 60,
-     "MLP_HIDDEN": (256, 128), "MLP_LR": 1e-3, "MLP_MAX_ITER": 120, "USE_CONF": True},
+    {"NUM_SHAPELETS": 64, "LEN_MIN": 40, "LEN_MAX": 80, "MAX_TRAIN_PER_CLASS": 60,
+     "MLP_HIDDEN": (256, 64), "MLP_LR": 1e-3, "MLP_MAX_ITER": 200, "USE_CONF": True},
 
-    {"NUM_SHAPELETS": 64,  "LEN_MIN": 25, "LEN_MAX": 55, "MAX_TRAIN_PER_CLASS": 60,
-     "MLP_HIDDEN": (256, 128), "MLP_LR": 1e-3, "MLP_MAX_ITER": 120, "USE_CONF": True},
+    {"NUM_SHAPELETS": 64, "LEN_MIN": 40, "LEN_MAX": 80, "MAX_TRAIN_PER_CLASS": 60,
+     "MLP_HIDDEN": (512, 128), "MLP_LR": 1e-3, "MLP_MAX_ITER": 200, "USE_CONF": True},
 
-    {"NUM_SHAPELETS": 64,  "LEN_MIN": 30, "LEN_MAX": 70, "MAX_TRAIN_PER_CLASS": 60,
-     "MLP_HIDDEN": (256, 128), "MLP_LR": 1e-3, "MLP_MAX_ITER": 120, "USE_CONF": True},
+    {"NUM_SHAPELETS": 64, "LEN_MIN": 40, "LEN_MAX": 80, "MAX_TRAIN_PER_CLASS": 60,
+     "MLP_HIDDEN": (512, 256), "MLP_LR": 1e-3, "MLP_MAX_ITER": 200, "USE_CONF": True},
 
-    {"NUM_SHAPELETS": 64,  "LEN_MIN": 40, "LEN_MAX": 80, "MAX_TRAIN_PER_CLASS": 60,
-     "MLP_HIDDEN": (256, 128), "MLP_LR": 1e-3, "MLP_MAX_ITER": 120, "USE_CONF": True},
+    # 9-10) Three-layer test (sometimes helps fine decision boundaries)
+    {"NUM_SHAPELETS": 64, "LEN_MIN": 40, "LEN_MAX": 80, "MAX_TRAIN_PER_CLASS": 60,
+     "MLP_HIDDEN": (256, 128, 64), "MLP_LR": 1e-3, "MLP_MAX_ITER": 200, "USE_CONF": True},
 
-    {"NUM_SHAPELETS": 96,  "LEN_MIN": 20, "LEN_MAX": 50, "MAX_TRAIN_PER_CLASS": 60,
-     "MLP_HIDDEN": (256, 128), "MLP_LR": 1e-3, "MLP_MAX_ITER": 120, "USE_CONF": True},
+    {"NUM_SHAPELETS": 64, "LEN_MIN": 40, "LEN_MAX": 80, "MAX_TRAIN_PER_CLASS": 60,
+     "MLP_HIDDEN": (512, 256, 128), "MLP_LR": 1e-3, "MLP_MAX_ITER": 200, "USE_CONF": True},
 
-    {"NUM_SHAPELETS": 96,  "LEN_MIN": 25, "LEN_MAX": 55, "MAX_TRAIN_PER_CLASS": 60,
-     "MLP_HIDDEN": (256, 128), "MLP_LR": 1e-3, "MLP_MAX_ITER": 120, "USE_CONF": True},
+    # 11-12) Small LR nudges around 1e-3 (since 5e-4 and 2e-3 were slightly worse)
+    {"NUM_SHAPELETS": 64, "LEN_MIN": 40, "LEN_MAX": 80, "MAX_TRAIN_PER_CLASS": 60,
+     "MLP_HIDDEN": (256, 128), "MLP_LR": 8e-4, "MLP_MAX_ITER": 200, "USE_CONF": True},
+
+    {"NUM_SHAPELETS": 64, "LEN_MIN": 40, "LEN_MAX": 80, "MAX_TRAIN_PER_CLASS": 60,
+     "MLP_HIDDEN": (256, 128), "MLP_LR": 1.2e-3, "MLP_MAX_ITER": 200, "USE_CONF": True},
 ]
+
 
 _SINGLE_RUN_CFG = {
     "NUM_SHAPELETS": NUM_SHAPELETS,
@@ -529,6 +536,7 @@ def main() -> None:
     print(f"Planned sweep runs: {len(runs)}")
 
     for run_idx, cfg in enumerate(runs, start=1):
+        torch_set_seed(RANDOM_SEED) # for fair multi-run
         NUM_SHAPELETS = int(cfg["NUM_SHAPELETS"])
         LEN_MIN = int(cfg["LEN_MIN"])
         LEN_MAX = int(cfg["LEN_MAX"])

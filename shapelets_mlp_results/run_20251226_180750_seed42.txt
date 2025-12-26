@@ -1,0 +1,71 @@
+=== Shapelets + MLP (Random Shapelet Transform) ===
+
+[Hyperparameters]
+{
+  "RANDOM_SEED": 42,
+  "USE_CONF": false,
+  "NUM_SHAPELETS": 64,
+  "LEN_MIN": 20,
+  "LEN_MAX": 80,
+  "MAX_TRAIN_PER_CLASS": 30,
+  "MLP_HIDDEN": [
+    256,
+    128
+  ],
+  "MLP_MAX_ITER": 80,
+  "MLP_LR": 0.001,
+  "test_size": 0.2
+}
+
+[Split / Data]
+{
+  "total_files": 599,
+  "train_files_before_cap": 479,
+  "test_files": 120,
+  "train_sequences_after_cap": 180,
+  "class_names": [
+    "boxing",
+    "handclapping",
+    "handwaving",
+    "jogging",
+    "running",
+    "walking"
+  ]
+}
+
+[Timings (seconds)]
+{
+  "load_data": 0.5019,
+  "sample_shapelets": 0.0033,
+  "transform_train": 105.5038,
+  "transform_test": 72.2218,
+  "mlp_fit": 0.1702,
+  "eval": 0.0,
+  "total": 178.4036
+}
+
+[Accuracy]
+0.625000
+
+[Confusion Matrix]
+[[18  2  0  0  0  0]
+ [ 0 18  2  0  0  0]
+ [ 1  5 14  0  0  0]
+ [ 0  0  0 11  7  2]
+ [ 0  0  0 11  7  2]
+ [ 0  0  0  6  7  7]]
+
+[Classification Report]
+              precision    recall  f1-score   support
+
+      boxing     0.9474    0.9000    0.9231        20
+handclapping     0.7200    0.9000    0.8000        20
+  handwaving     0.8750    0.7000    0.7778        20
+     jogging     0.3929    0.5500    0.4583        20
+     running     0.3333    0.3500    0.3415        20
+     walking     0.6364    0.3500    0.4516        20
+
+    accuracy                         0.6250       120
+   macro avg     0.6508    0.6250    0.6254       120
+weighted avg     0.6508    0.6250    0.6254       120
+

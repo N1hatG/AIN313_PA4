@@ -6,7 +6,7 @@ Random Shapelet Transform + MLP classifier (QUICK TEST RUN CONFIG)
 - Uses pose_norm (T,25,3) -> time-series (T,D)
 - Samples random shapelets from TRAIN ONLY
 - Computes min z-normalized Euclidean distance over each shapelet => features
-- Trains sklearn MLPClassifier
+- Trains MLPClassifier
 - Saves hyperparameters + metrics + confusion matrix + classification report
   to: shapelets_mlp_results/run_<timestamp>_seed<seed>.txt
 
@@ -25,10 +25,12 @@ from typing import Dict, List, Tuple
 import numpy as np
 from tqdm import tqdm
 from sklearn.model_selection import train_test_split
-from sklearn.neural_network import MLPClassifier
 from sklearn.metrics import accuracy_score, confusion_matrix, classification_report
 from sklearn.metrics import f1_score
 
+import torch
+import torch.nn as nn
+from torch.utils.data import DataLoader, TensorDataset
 
 
 # Paths / labels
@@ -71,30 +73,29 @@ MLP_LR = 1e-3
 USE_CONF = False  # keep False for speed (D=50). True => D=75
 RUN_HYPERPARAM_MULTI_RUN = True #True runs multi-run test, False runs with SINGLE RUN PARAMS ABOVE
 
-# Hyperparameter multi-run configs 
+# Hyperparameter multi-run configs
 # Keep this list small to avoid long runtime. or the runnnsss foreveeeerrrr
 HYPERPARAM_SWEEP = [
-    # 1) Same K, try more training iterations (sometimes helps MLP converge)
+
     {"NUM_SHAPELETS": 128, "LEN_MIN": 20, "LEN_MAX": 80, "MAX_TRAIN_PER_CLASS": 60,
      "MLP_HIDDEN": (256, 128), "MLP_LR": 1e-3, "MLP_MAX_ITER": 120, "USE_CONF": False},
 
-    # 2) Shorter shapelets (might help rhythmic actions; can reduce jogging/running confusion)
+
     {"NUM_SHAPELETS": 128, "LEN_MIN": 15, "LEN_MAX": 50, "MAX_TRAIN_PER_CLASS": 60,
      "MLP_HIDDEN": (256, 128), "MLP_LR": 1e-3, "MLP_MAX_ITER": 120, "USE_CONF": False},
 
-    # 3) Medium lengths (often a good sweet spot)
+
     {"NUM_SHAPELETS": 128, "LEN_MIN": 25, "LEN_MAX": 60, "MAX_TRAIN_PER_CLASS": 60,
      "MLP_HIDDEN": (256, 128), "MLP_LR": 1e-3, "MLP_MAX_ITER": 120, "USE_CONF": False},
 
-    # 4) Bigger MLP (transform dominates time anyway; MLP change is cheap)
     {"NUM_SHAPELETS": 128, "LEN_MIN": 20, "LEN_MAX": 80, "MAX_TRAIN_PER_CLASS": 60,
      "MLP_HIDDEN": (512, 256), "MLP_LR": 1e-3, "MLP_MAX_ITER": 150, "USE_CONF": False},
 
-    # 5) Try confidence channel but keep K small to avoid runtime blow-up
+
     {"NUM_SHAPELETS": 64, "LEN_MIN": 20, "LEN_MAX": 80, "MAX_TRAIN_PER_CLASS": 60,
      "MLP_HIDDEN": (256, 128), "MLP_LR": 1e-3, "MLP_MAX_ITER": 120, "USE_CONF": True},
 
-    # 6) Slightly smaller LR (sometimes stabilizes MLP)
+
     {"NUM_SHAPELETS": 128, "LEN_MIN": 20, "LEN_MAX": 80, "MAX_TRAIN_PER_CLASS": 60,
      "MLP_HIDDEN": (256, 128), "MLP_LR": 5e-4, "MLP_MAX_ITER": 150, "USE_CONF": False},
 ]
@@ -109,6 +110,12 @@ _SINGLE_RUN_CFG = {
     "MLP_MAX_ITER": MLP_MAX_ITER,
     "USE_CONF": USE_CONF,
 }
+
+BATCH_SIZE = 128
+WEIGHT_DECAY = 0.0
+DROPOUT = 0.0
+EARLY_STOPPING_PATIENCE = 15
+VAL_SPLIT = 0.15
 
 
 # Utilities
@@ -198,6 +205,7 @@ def min_dist_to_shapelet(series: np.ndarray, shapelet: Shapelet, eps: float = 1e
     dist = np.linalg.norm(diff, axis=(1, 2)) / L        # (W,)
     return float(dist.min())
 
+
 def sample_shapelets(
     X_train: List[np.ndarray],
     y_train: np.ndarray,
@@ -265,6 +273,106 @@ def transform_with_shapelets(
     return feats
 
 
+class TorchMLP(nn.Module):
+    def __init__(self, in_dim: int, hidden: Tuple[int, ...], out_dim: int, dropout: float = 0.0) -> None:
+        super().__init__()
+        layers: List[nn.Module] = []
+        prev = in_dim
+        for h in hidden:
+            layers.append(nn.Linear(prev, h))
+            layers.append(nn.ReLU())
+            if dropout > 0:
+                layers.append(nn.Dropout(p=dropout))
+            prev = h
+        layers.append(nn.Linear(prev, out_dim))
+        self.net = nn.Sequential(*layers)
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        return self.net(x)
+
+
+def set_all_seeds(seed: int) -> None:
+    np.random.seed(seed)
+    random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
+
+
+def train_epoch(
+    model: nn.Module,
+    loader: DataLoader,
+    optimizer: torch.optim.Optimizer,
+    criterion: nn.Module,
+    device: torch.device,
+) -> Tuple[float, float]:
+    model.train()
+    total_loss = 0.0
+    correct = 0
+    n = 0
+
+    for xb, yb in loader:
+        xb = xb.to(device)
+        yb = yb.to(device)
+
+        optimizer.zero_grad(set_to_none=True)
+        logits = model(xb)
+        loss = criterion(logits, yb)
+        loss.backward()
+        optimizer.step()
+
+        bs = yb.size(0)
+        total_loss += float(loss.item()) * bs
+        pred = torch.argmax(logits, dim=1)
+        correct += int((pred == yb).sum().item())
+        n += bs
+
+    return total_loss / max(n, 1), correct / max(n, 1)
+
+
+@torch.no_grad()
+def eval_epoch(
+    model: nn.Module,
+    loader: DataLoader,
+    criterion: nn.Module,
+    device: torch.device,
+) -> Tuple[float, float]:
+    model.eval()
+    total_loss = 0.0
+    correct = 0
+    n = 0
+
+    for xb, yb in loader:
+        xb = xb.to(device)
+        yb = yb.to(device)
+
+        logits = model(xb)
+        loss = criterion(logits, yb)
+
+        bs = yb.size(0)
+        total_loss += float(loss.item()) * bs
+        pred = torch.argmax(logits, dim=1)
+        correct += int((pred == yb).sum().item())
+        n += bs
+
+    return total_loss / max(n, 1), correct / max(n, 1)
+
+
+@torch.no_grad()
+def predict_all(model: nn.Module, X: np.ndarray, device: torch.device, batch_size: int = 256) -> np.ndarray:
+    model.eval()
+    x = torch.from_numpy(X).float()
+    loader = DataLoader(TensorDataset(x), batch_size=batch_size, shuffle=False)
+    preds: List[np.ndarray] = []
+    for (xb,) in loader:
+        xb = xb.to(device)
+        logits = model(xb)
+        pred = torch.argmax(logits, dim=1).cpu().numpy()
+        preds.append(pred)
+    return np.concatenate(preds, axis=0)
+
+
 # Results logging
 def save_results_txt(
     run_path: Path,
@@ -312,11 +420,16 @@ def save_results_txt(
         f.write(hyperparams.get("PER_CLASS_TABLE", "(NA)"))
         f.write("\n \n")
 
+        f.write("[Training Curves]\n")
+        f.write(hyperparams.get("CURVES_TABLE", "(NA)"))
+        f.write("\n \n")
 
 
 def main() -> None:
-    np.random.seed(RANDOM_SEED)
-    random.seed(RANDOM_SEED)
+    set_all_seeds(RANDOM_SEED)
+
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    print(f"Device: {device}")
 
     all_files = list_npz_toggle_check()
     y_for_split = np.array([LABELS[p.parent.name] for p in all_files], dtype=np.int32)
@@ -363,10 +476,22 @@ def main() -> None:
             X_train = [X_train[i] for i in keep_idx]
             y_train = y_train[keep_idx]
 
+        idx_all = np.arange(len(y_train))
+        tr_idx, va_idx = train_test_split(
+            idx_all,
+            test_size=VAL_SPLIT,
+            random_state=RANDOM_SEED,
+            stratify=y_train,
+        )
+        X_tr_list = [X_train[i] for i in tr_idx.tolist()]
+        y_tr = y_train[tr_idx]
+        X_va_list = [X_train[i] for i in va_idx.tolist()]
+        y_va = y_train[va_idx]
+
         # Sample shapelets on TRAIN ONLY
         t_samp0 = time.time()
         shapelets = sample_shapelets(
-            X_train, y_train,
+            X_tr_list, y_tr,
             num_shapelets=NUM_SHAPELETS,
             len_min=LEN_MIN,
             len_max=LEN_MAX,
@@ -376,7 +501,8 @@ def main() -> None:
 
         # Transform
         t_tr0 = time.time()
-        Xtr_feat = transform_with_shapelets(X_train, shapelets, show_progress=True)
+        Xtr_feat = transform_with_shapelets(X_tr_list, shapelets, show_progress=True)
+        Xva_feat = transform_with_shapelets(X_va_list, shapelets, show_progress=True)
         t_tr1 = time.time()
 
         t_te0 = time.time()
@@ -385,21 +511,49 @@ def main() -> None:
 
         # Train MLP
         t_fit0 = time.time()
-        clf = MLPClassifier(
-            hidden_layer_sizes=MLP_HIDDEN,
-            activation="relu",
-            solver="adam",
-            learning_rate_init=MLP_LR,
-            max_iter=MLP_MAX_ITER,
-            random_state=RANDOM_SEED,
-            verbose=False,
-        )
-        clf.fit(Xtr_feat, y_train)
+        in_dim = Xtr_feat.shape[1]
+        out_dim = len(LABELS)
+
+        model = TorchMLP(in_dim=in_dim, hidden=MLP_HIDDEN, out_dim=out_dim, dropout=DROPOUT).to(device)
+        optimizer = torch.optim.Adam(model.parameters(), lr=MLP_LR, weight_decay=WEIGHT_DECAY)
+        criterion = nn.CrossEntropyLoss()
+
+        ds_tr = TensorDataset(torch.from_numpy(Xtr_feat).float(), torch.from_numpy(y_tr).long())
+        ds_va = TensorDataset(torch.from_numpy(Xva_feat).float(), torch.from_numpy(y_va).long())
+        dl_tr = DataLoader(ds_tr, batch_size=BATCH_SIZE, shuffle=True, drop_last=False)
+        dl_va = DataLoader(ds_va, batch_size=BATCH_SIZE, shuffle=False, drop_last=False)
+
+        best_val_acc = -1.0
+        best_epoch = -1
+        best_state = None
+        bad_epochs = 0
+
+        curve = []
+        for epoch in range(1, MLP_MAX_ITER + 1):
+            tr_loss, tr_acc = train_epoch(model, dl_tr, optimizer, criterion, device)
+            va_loss, va_acc = eval_epoch(model, dl_va, criterion, device)
+
+            curve.append((epoch, tr_loss, tr_acc, va_loss, va_acc))
+
+            if va_acc > best_val_acc + 1e-6:
+                best_val_acc = va_acc
+                best_epoch = epoch
+                best_state = {k: v.detach().cpu().clone() for k, v in model.state_dict().items()}
+                bad_epochs = 0
+            else:
+                bad_epochs += 1
+
+            if bad_epochs >= EARLY_STOPPING_PATIENCE:
+                break
+
+        if best_state is not None:
+            model.load_state_dict(best_state)
+
         t_fit1 = time.time()
 
         # Evaluate
         t_eval0 = time.time()
-        pred = clf.predict(Xte_feat)
+        pred = predict_all(model, Xte_feat, device=device, batch_size=256)
         acc = accuracy_score(y_test, pred)
         cm = confusion_matrix(y_test, pred)
         report = classification_report(
@@ -416,11 +570,12 @@ def main() -> None:
         print("\n============================================================")
         print(f"RUN {run_idx}/{len(runs)}")
         print(f"K={NUM_SHAPELETS} | L={LEN_MIN}-{LEN_MAX} | cap={MAX_TRAIN_PER_CLASS} | conf={USE_CONF}")
-        print(f"MLP={MLP_HIDDEN} | lr={MLP_LR} | iters={MLP_MAX_ITER}")
+        print(f"MLP={MLP_HIDDEN} | lr={MLP_LR} | iters(max)={MLP_MAX_ITER}")
         print("------------------------------------------------------------")
         print(f"Accuracy     : {acc:.3f}")
         print(f"Macro F1     : {macro_f1:.3f}")
         print(f"Weighted F1  : {weighted_f1:.3f}")
+        print(f"Best val acc : {best_val_acc:.3f} @ epoch {best_epoch}")
         print("\n[Top confusions]")
         print(top_confusions(cm, k=10))
 
@@ -434,10 +589,12 @@ def main() -> None:
             f"_conf{int(USE_CONF)}"
             f"_mlp{'x'.join(map(str, MLP_HIDDEN))}"
             f"_lr{MLP_LR:g}"
-            f"_it{MLP_MAX_ITER}"
+            f"_ep{MLP_MAX_ITER}"
             f"_seed{RANDOM_SEED}"
         )
         run_txt = RESULTS_DIR / f"{timestamp}_{tag}.txt"
+
+        curves_table = curves_to_table(curve, max_rows=25)
 
         hyperparams = {
             "RANDOM_SEED": RANDOM_SEED,
@@ -451,11 +608,21 @@ def main() -> None:
             "MLP_LR": MLP_LR,
             "test_size": 0.2,
 
+            "BATCH_SIZE": BATCH_SIZE,
+            "WEIGHT_DECAY": WEIGHT_DECAY,
+            "DROPOUT": DROPOUT,
+            "VAL_SPLIT": VAL_SPLIT,
+            "EARLY_STOPPING_PATIENCE": EARLY_STOPPING_PATIENCE,
+            "DEVICE": str(device),
+
             # Extra readable metrics/text blobs
             "MACRO_F1": float(macro_f1),
             "WEIGHTED_F1": float(weighted_f1),
+            "BEST_VAL_ACC": float(best_val_acc),
+            "BEST_EPOCH": int(best_epoch),
             "TOP_CONFUSIONS": top_confusions(cm, k=10),
             "PER_CLASS_TABLE": per_class_table(y_test, pred),
+            "CURVES_TABLE": curves_table,
         }
         split_info = {
             "total_files": len(all_files),
@@ -467,9 +634,9 @@ def main() -> None:
         timings = {
             "load_data": round(t_load1 - t_load0, 4),
             "sample_shapelets": round(t_samp1 - t_samp0, 4),
-            "transform_train": round(t_tr1 - t_tr0, 4),
+            "transform_train_val": round(t_tr1 - t_tr0, 4),
             "transform_test": round(t_te1 - t_te0, 4),
-            "mlp_fit": round(t_fit1 - t_fit0, 4),
+            "torch_fit": round(t_fit1 - t_fit0, 4),
             "eval": round(t_eval1 - t_eval0, 4),
             "total": round(t1 - t0, 4),
         }
@@ -549,6 +716,7 @@ def top_confusions(cm: np.ndarray, k: int = 8) -> str:
         lines.append(f"{INV_LABELS[i]} -> {INV_LABELS[j]} : {cnt}")
     return "\n".join(lines) if lines else "(no confusions)"
 
+
 def pretty_confusion_matrix(cm: np.ndarray) -> str:
     labels = [INV_LABELS[i] for i in range(len(INV_LABELS))]
     short = [SHORT_LABELS[l] for l in labels]
@@ -563,6 +731,26 @@ def pretty_confusion_matrix(cm: np.ndarray) -> str:
         lines.append(line)
 
     return "\n".join(lines)
+
+
+def curves_to_table(curve: List[Tuple[int, float, float, float, float]], max_rows: int = 25) -> str:
+    if not curve:
+        return "(no curves)"
+    lines = []
+    header = f"{'ep':>4} {'tr_loss':>10} {'tr_acc':>8} {'va_loss':>10} {'va_acc':>8}"
+    lines.append(header)
+    lines.append("-" * len(header))
+    if len(curve) <= max_rows:
+        rows = curve
+    else:
+        step = max(1, len(curve) // max_rows)
+        rows = curve[::step]
+        if rows[-1][0] != curve[-1][0]:
+            rows.append(curve[-1])
+    for ep, trl, tra, val, vaa in rows:
+        lines.append(f"{ep:>4d} {trl:>10.4f} {tra:>8.3f} {val:>10.4f} {vaa:>8.3f}")
+    return "\n".join(lines)
+
 
 if __name__ == "__main__":
     main()

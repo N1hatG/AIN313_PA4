@@ -51,7 +51,6 @@ def load_data_recursive(root_folder):
                 except Exception as e:
                     print(f"error ({file}): {e}")
 
-    print(f"at total {file_count} uploaded")
     return X_list, np.array(y_list), max_length
 
 X_raw, y, max_len = load_data_recursive(DATA_PATH)
@@ -79,10 +78,6 @@ else:
         X_padded, y, test_size=TEST_SIZE, random_state=RANDOM_SEED, stratify=y
     )
 
-    print(f"Train data (X_train): {X_train.shape}") 
-    print(f"Test data (X_test):   {X_test.shape}")
-
-
 
 # Downsampling 
 # GAK, has N^2 complexity.
@@ -101,8 +96,6 @@ X_scaled = scaler.fit_transform(X_formatted)
 
 # Train/Test Split 
 X_train_g, X_test_g, y_train_g, y_test_g = train_test_split(X_scaled, y, test_size=0.2, random_state=42, stratify=y)
-
-print(f"train set size: {X_train_g.shape} (includes NaN)")
 
 # GAK + SVM training (with wider gamma range)
 # leaving gamma="auto" is best; tslearn scales according to the data.

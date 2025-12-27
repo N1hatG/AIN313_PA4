@@ -103,6 +103,7 @@ experiments = [
     {'name': 'Low Dropout',    'lr': 0.001, 'batch': 16, 'dropout': 0.1},
 ]
 
+
 results = []
 names = []
 
@@ -125,6 +126,25 @@ for bar in bars:
 
 plt.grid(axis='y', linestyle='--', alpha=0.7)
 plt.show()
+plt.figure(figsize=(10, 6))
+bars = plt.bar(names, results, color=['blue', 'orange', 'green', 'red'])
+
+plt.ylabel('Accuracy %')
+plt.title('CNN Hiperparameter Comparison (Ablation Study)')
+plt.ylim(0, 100)
+
+for bar in bars:
+    yval = bar.get_height()
+    plt.text(bar.get_x() + bar.get_width()/2, yval + 1, f'%{yval:.1f}', ha='center', va='bottom', fontsize=12, fontweight='bold')
+
+plt.grid(axis='y', linestyle='--', alpha=0.7)
+plt.show()
+
+print("\n-Result Table")
+print(f"{'experiment name':<20} | {'LR':<10} | {'Batch':<10} | {'Drop':<10} | {'Accuracy':<10}")
+print("-" * 70)
+for i, exp in enumerate(experiments):
+    print(f"{exp['name']:<20} | {exp['lr']:<10} | {exp['batch']:<10} | {exp['dropout']:<10} | %{results[i]:.2f}")
 
 #best hyperparameters
 BEST_LR = 0.001      
@@ -174,4 +194,42 @@ for epoch in range(EPOCHS):
     train_losses.append(running_loss / len(train_loader))
     test_accuracies.append(acc)
     
- 
+ # Loss and Accuracy graphs
+plt.figure(figsize=(12, 5))
+plt.subplot(1, 2, 1)
+plt.plot(train_losses, label='Training Loss', color='blue')
+plt.title('Eğitim Kaybı (Loss)')
+plt.xlabel('Epoch')
+plt.legend()
+
+plt.subplot(1, 2, 2)
+plt.plot(test_accuracies, label='Test Accuracy', color='green')
+plt.title('Test Doğruluğu (%)')
+plt.xlabel('Epoch')
+plt.legend()
+plt.show()
+
+# Confusion Matrix and report
+model.eval()
+all_preds = []
+all_labels = []
+
+with torch.no_grad():
+    for inputs, labels in test_loader:
+        outputs = model(inputs)
+        _, predicted = torch.max(outputs.data, 1)
+        all_preds.extend(predicted.cpu().numpy())
+        all_labels.extend(labels.cpu().numpy())
+
+print("\nFinal classifition report")
+print(classification_report(all_labels, all_preds, target_names=['Box', 'Clap', 'Wave', 'Jog', 'Run', 'Walk']))
+
+cm = confusion_matrix(all_labels, all_preds)
+plt.figure(figsize=(8, 6))
+sns.heatmap(cm, annot=True, fmt='d', cmap='Blues', 
+            xticklabels=['Box', 'Clap', 'Wave', 'Jog', 'Run', 'Walk'],
+            yticklabels=['Box', 'Clap', 'Wave', 'Jog', 'Run', 'Walk'])
+plt.title(f'Final CNN Confusion Matrix (Acc: %{test_accuracies[-1]:.2f})')
+plt.ylabel('real')
+plt.xlabel('prediction')
+plt.show()

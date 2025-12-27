@@ -8,7 +8,7 @@ from sklearn.metrics import accuracy_score, classification_report, confusion_mat
 import seaborn as sns
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-print(f"{device} is being used")
+print(f" {device} is being used")
 
 X_train_tensor = torch.tensor(np.nan_to_num(X_train_g, nan=0.0), dtype=torch.float32).to(device)
 y_train_tensor = torch.tensor(y_train_g, dtype=torch.long).to(device)
@@ -17,12 +17,15 @@ X_test_tensor = torch.tensor(np.nan_to_num(X_test_g, nan=0.0), dtype=torch.float
 y_test_tensor = torch.tensor(y_test_g, dtype=torch.long).to(device)
 
 # create dataLoader (for batch training)
-BATCH_SIZE = 16 
+BATCH_SIZE = 16 # Bellek hatası alırsan düşür
 train_dataset = TensorDataset(X_train_tensor, y_train_tensor)
 train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True)
 
 test_dataset = TensorDataset(X_test_tensor, y_test_tensor)
 test_loader = DataLoader(test_dataset, batch_size=BATCH_SIZE, shuffle=False)
+
+print(f"data is ready, input size: {X_train_tensor.shape}")
+
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 class ActionCNN_Dynamic(nn.Module):
@@ -123,36 +126,40 @@ for bar in bars:
 plt.grid(axis='y', linestyle='--', alpha=0.7)
 plt.show()
 
-print("\n-Result Table")
-print(f"{'experiment name':<20} | {'LR':<10} | {'Batch':<10} | {'Drop':<10} | {'Accuracy':<10}")
-print("-" * 70)
-for i, exp in enumerate(experiments):
-    print(f"{exp['name']:<20} | {exp['lr']:<10} | {exp['batch']:<10} | {exp['dropout']:<10} | %{results[i]:.2f}")
+#best hyperparameters
+BEST_LR = 0.001      
+BEST_BATCH = 64
+BEST_DROPOUT = 0.5   
+EPOCHS = 40          
 
+
+train_ds = TensorDataset(X_train_tensor, y_train_tensor)
+test_ds = TensorDataset(X_test_tensor, y_test_tensor)
+
+train_loader = DataLoader(train_ds, batch_size=BEST_BATCH, shuffle=True)
+test_loader = DataLoader(test_ds, batch_size=BEST_BATCH, shuffle=False)
+
+model = ActionCNN_Dynamic(input_channels=75, num_classes=6, dropout_rate=BEST_DROPOUT).to(device)
 criterion = nn.CrossEntropyLoss()
-optimizer = optim.Adam(model.parameters(), lr=0.001)
-
-EPOCHS = 35
+optimizer = optim.Adam(model.parameters(), lr=BEST_LR)
 
 train_losses = []
-val_accuracies = []
+test_accuracies = []
 
-print("CNN training is starting")
+print(f"Final CNN model training is starting (LR={BEST_LR}, Batch={BEST_BATCH})")
 
 for epoch in range(EPOCHS):
     model.train()
     running_loss = 0.0
-    
     for inputs, labels in train_loader:
         optimizer.zero_grad()
-        
         outputs = model(inputs)
         loss = criterion(outputs, labels)
         loss.backward()
         optimizer.step()
-        
         running_loss += loss.item()
     
+    # Test Performance
     model.eval()
     correct = 0
     total = 0
@@ -163,10 +170,8 @@ for epoch in range(EPOCHS):
             total += labels.size(0)
             correct += (predicted == labels).sum().item()
     
-    val_acc = 100 * correct / total
+    acc = 100 * correct / total
     train_losses.append(running_loss / len(train_loader))
-    val_accuracies.append(val_acc)
+    test_accuracies.append(acc)
     
-    print(f"Epoch [{epoch+1}/{EPOCHS}], Loss: {running_loss/len(train_loader):.4f}, Test Acc: %{val_acc:.2f}")
-
-print("training completed")
+ 

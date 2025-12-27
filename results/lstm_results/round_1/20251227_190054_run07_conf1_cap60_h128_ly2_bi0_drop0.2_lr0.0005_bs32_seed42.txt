@@ -1,0 +1,132 @@
+=== LSTM (Pose Sequence Classification) ===
+ 
+[Hyperparameters]
+{
+  "RANDOM_SEED": 42,
+  "USE_CONF": true,
+  "MAX_TRAIN_PER_CLASS": 60,
+  "test_size": 0.2,
+  "val_split": 0.15,
+  "weight_decay": 0.0001,
+  "early_stopping_patience": 12,
+  "grad_clip_norm": 5.0,
+  "LSTM_HIDDEN": 128,
+  "LSTM_LAYERS": 2,
+  "BIDIRECTIONAL": false,
+  "DROPOUT": 0.2,
+  "LR": 0.0005,
+  "BATCH_SIZE": 32,
+  "MAX_EPOCHS": 60,
+  "BEST_VAL_ACC": 0.7222222222222222,
+  "BEST_EPOCH": 11,
+  "EPOCHS_RUN": 23,
+  "CHECKPOINT_PATH": "C:\\Users\\User\\Desktop\\AIN313_PA4\\results\\lstm_results\\round_1_single_run\\20251227_190054_run07_conf1_cap60_h128_ly2_bi0_drop0.2_lr0.0005_bs32_seed42.pt",
+  "MACRO_F1": 0.6539988255663313,
+  "WEIGHTED_F1": 0.6539988255663313,
+  "TOP_CONFUSIONS": "running -> jogging : 8\njogging -> walking : 7\njogging -> running : 6\nwalking -> running : 5\nwalking -> jogging : 4\nwalking -> boxing : 4\nrunning -> walking : 2\nhandclapping -> handwaving : 2\nrunning -> boxing : 1\njogging -> boxing : 1",
+  "PER_CLASS_TABLE": "class            prec    rec     f1   supp\n------------------------------------------\nboxing          0.769  1.000  0.870     20\nhandclapping    1.000  0.900  0.947     20\nhandwaving      0.909  1.000  0.952     20\njogging         0.333  0.300  0.316     20\nrunning         0.450  0.450  0.450     20\nwalking         0.438  0.350  0.389     20",
+  "TRAINING_CURVES": "epoch    tr_loss   tr_acc    va_loss   va_acc\n----------------------------------------------\n    1     1.6993   0.3203     1.5646   0.4630\n    2     1.4381   0.4967     1.2865   0.4444\n    3     1.1698   0.5261     1.0965   0.5370\n    4     1.0032   0.5850     0.9975   0.5556\n    5     0.9385   0.6242     0.9565   0.5185\n    6     0.8261   0.6340     0.8941   0.6111\n    7     0.7438   0.6634     0.8932   0.4815\n    8     0.6776   0.6634     0.8382   0.6111\n    9     0.5772   0.8039     0.8724   0.6481\n   10     0.5339   0.7778     0.8736   0.6852\n   11     0.4640   0.8333     0.8497   0.7222\n   12     0.3957   0.8627     0.9430   0.5926\n   13     0.3500   0.8922     0.9004   0.7037\n   14     0.2694   0.9379     0.9199   0.6852\n   15     0.2271   0.9510     1.0894   0.6296\n   16     0.1949   0.9608     0.9886   0.6667\n   17     0.2103   0.9248     1.0692   0.6667\n   18     0.1501   0.9641     1.0427   0.6667\n   19     0.1973   0.9412     0.9790   0.6667\n   20     0.1343   0.9641     1.0538   0.6667\n   21     0.1409   0.9608     1.0984   0.7037\n   22     0.0987   0.9771     1.1348   0.6667\n   23     0.0879   0.9771     1.2071   0.7037"
+}
+ 
+[Split / Data]
+{
+  "total_files": 599,
+  "train_files_before_cap": 479,
+  "test_files": 120,
+  "train_sequences_after_cap": 360,
+  "class_names": [
+    "boxing",
+    "handclapping",
+    "handwaving",
+    "jogging",
+    "running",
+    "walking"
+  ]
+}
+ 
+[Timings (seconds)]
+{
+  "load_data": 0.6726,
+  "train_fit": 19.5048,
+  "eval": 0.1608,
+  "total": 20.3498
+}
+ 
+[Accuracy]
+0.666667
+
+[Confusion Matrix]
+            BX    HC    HW    JG    RN    WK
+BX     |    20     0     0     0     0     0
+HC     |     0    18     2     0     0     0
+HW     |     0     0    20     0     0     0
+JG     |     1     0     0     6     6     7
+RN     |     1     0     0     8     9     2
+WK     |     4     0     0     4     5     7
+ 
+[Classification Report]
+              precision    recall  f1-score   support
+
+      boxing     0.7692    1.0000    0.8696        20
+handclapping     1.0000    0.9000    0.9474        20
+  handwaving     0.9091    1.0000    0.9524        20
+     jogging     0.3333    0.3000    0.3158        20
+     running     0.4500    0.4500    0.4500        20
+     walking     0.4375    0.3500    0.3889        20
+
+    accuracy                         0.6667       120
+   macro avg     0.6499    0.6667    0.6540       120
+weighted avg     0.6499    0.6667    0.6540       120
+
+Macro F1: 0.6539988255663313
+Weighted F1: 0.6539988255663313
+ 
+[Top Confusions]
+running -> jogging : 8
+jogging -> walking : 7
+jogging -> running : 6
+walking -> running : 5
+walking -> jogging : 4
+walking -> boxing : 4
+running -> walking : 2
+handclapping -> handwaving : 2
+running -> boxing : 1
+jogging -> boxing : 1
+ 
+[Per-class Table]
+class            prec    rec     f1   supp
+------------------------------------------
+boxing          0.769  1.000  0.870     20
+handclapping    1.000  0.900  0.947     20
+handwaving      0.909  1.000  0.952     20
+jogging         0.333  0.300  0.316     20
+running         0.450  0.450  0.450     20
+walking         0.438  0.350  0.389     20
+ 
+[Training Curves]
+epoch    tr_loss   tr_acc    va_loss   va_acc
+----------------------------------------------
+    1     1.6993   0.3203     1.5646   0.4630
+    2     1.4381   0.4967     1.2865   0.4444
+    3     1.1698   0.5261     1.0965   0.5370
+    4     1.0032   0.5850     0.9975   0.5556
+    5     0.9385   0.6242     0.9565   0.5185
+    6     0.8261   0.6340     0.8941   0.6111
+    7     0.7438   0.6634     0.8932   0.4815
+    8     0.6776   0.6634     0.8382   0.6111
+    9     0.5772   0.8039     0.8724   0.6481
+   10     0.5339   0.7778     0.8736   0.6852
+   11     0.4640   0.8333     0.8497   0.7222
+   12     0.3957   0.8627     0.9430   0.5926
+   13     0.3500   0.8922     0.9004   0.7037
+   14     0.2694   0.9379     0.9199   0.6852
+   15     0.2271   0.9510     1.0894   0.6296
+   16     0.1949   0.9608     0.9886   0.6667
+   17     0.2103   0.9248     1.0692   0.6667
+   18     0.1501   0.9641     1.0427   0.6667
+   19     0.1973   0.9412     0.9790   0.6667
+   20     0.1343   0.9641     1.0538   0.6667
+   21     0.1409   0.9608     1.0984   0.7037
+   22     0.0987   0.9771     1.1348   0.6667
+   23     0.0879   0.9771     1.2071   0.7037
+ 

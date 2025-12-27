@@ -14,6 +14,7 @@ Only needs: numpy, torch, scikit-learn, tqdm
 """
 
 from __future__ import annotations
+from tqdm import tqdm
 
 import json
 import os
@@ -37,7 +38,7 @@ from torch.utils.data import DataLoader, Dataset
 # Paths / labels
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 NPZ_ROOT = PROJECT_ROOT / "data" / "poses_npz"
-RESULTS_DIR = PROJECT_ROOT / "lstm_results" / "round_1_single_run"
+RESULTS_DIR = PROJECT_ROOT / "results" / "lstm_results" / "round_3"
 
 LABELS: Dict[str, int] = {
     "boxing": 0,
@@ -81,36 +82,32 @@ BATCH_SIZE = 32
 LR = 1e-3
 WEIGHT_DECAY = 1e-4
 MAX_EPOCHS = 60
-EARLY_STOPPING_PATIENCE = 12
+EARLY_STOPPING_PATIENCE = 20
 GRAD_CLIP_NORM = 5.0
 
 # Multi-run toggle (start False; once single run works, set True)
-RUN_HYPERPARAM_MULTI_RUN = False
+RUN_HYPERPARAM_MULTI_RUN = True
 
 # Hyperparameter sweep (ONLY used if RUN_HYPERPARAM_MULTI_RUN=True)
 # Keep list small; LSTM training is heavier than MLP.
 HYPERPARAM_SWEEP = [
-    # 1) Control (baseline)
-    {"LSTM_HIDDEN": 128, "LSTM_LAYERS": 2, "BIDIRECTIONAL": False, "DROPOUT": 0.2, "LR": 1e-3, "BATCH_SIZE": 32},
+    # A) Current champion
+    {"LSTM_HIDDEN": 64, "LSTM_LAYERS": 2, "BIDIRECTIONAL": True, "DROPOUT": 0.2, "LR": 1e-3, "BATCH_SIZE": 32},
 
-    # 2-4) Hidden size
-    {"LSTM_HIDDEN": 64,  "LSTM_LAYERS": 2, "BIDIRECTIONAL": False, "DROPOUT": 0.2, "LR": 1e-3, "BATCH_SIZE": 32},
-    {"LSTM_HIDDEN": 256, "LSTM_LAYERS": 2, "BIDIRECTIONAL": False, "DROPOUT": 0.2, "LR": 1e-3, "BATCH_SIZE": 32},
-    {"LSTM_HIDDEN": 128, "LSTM_LAYERS": 1, "BIDIRECTIONAL": False, "DROPOUT": 0.0, "LR": 1e-3, "BATCH_SIZE": 32},
+    # B) Slightly less dropout (sometimes 0.2 is too strong)
+    {"LSTM_HIDDEN": 64, "LSTM_LAYERS": 2, "BIDIRECTIONAL": True, "DROPOUT": 0.1, "LR": 1e-3, "BATCH_SIZE": 32},
 
-    # 5-6) Bidirectional
-    {"LSTM_HIDDEN": 128, "LSTM_LAYERS": 2, "BIDIRECTIONAL": True, "DROPOUT": 0.2, "LR": 1e-3, "BATCH_SIZE": 32},
-    {"LSTM_HIDDEN": 128, "LSTM_LAYERS": 1, "BIDIRECTIONAL": True, "DROPOUT": 0.0, "LR": 1e-3, "BATCH_SIZE": 32},
+    # C) Slightly more dropout (check regularization sweet spot)
+    {"LSTM_HIDDEN": 64, "LSTM_LAYERS": 2, "BIDIRECTIONAL": True, "DROPOUT": 0.3, "LR": 1e-3, "BATCH_SIZE": 32},
 
-    # 7-9) LR micro-search
-    {"LSTM_HIDDEN": 128, "LSTM_LAYERS": 2, "BIDIRECTIONAL": False, "DROPOUT": 0.2, "LR": 5e-4, "BATCH_SIZE": 32},
-    {"LSTM_HIDDEN": 128, "LSTM_LAYERS": 2, "BIDIRECTIONAL": False, "DROPOUT": 0.2, "LR": 2e-3, "BATCH_SIZE": 32},
-    {"LSTM_HIDDEN": 128, "LSTM_LAYERS": 2, "BIDIRECTIONAL": False, "DROPOUT": 0.2, "LR": 8e-4, "BATCH_SIZE": 32},
+    # D) Tiny LR decrease (for BiLSTM stability)
+    {"LSTM_HIDDEN": 64, "LSTM_LAYERS": 2, "BIDIRECTIONAL": True, "DROPOUT": 0.2, "LR": 8e-4, "BATCH_SIZE": 32},
 
-    # 10-12) Batch size stability checks
-    {"LSTM_HIDDEN": 128, "LSTM_LAYERS": 2, "BIDIRECTIONAL": False, "DROPOUT": 0.2, "LR": 1e-3, "BATCH_SIZE": 16},
-    {"LSTM_HIDDEN": 128, "LSTM_LAYERS": 2, "BIDIRECTIONAL": False, "DROPOUT": 0.2, "LR": 1e-3, "BATCH_SIZE": 64},
-    {"LSTM_HIDDEN": 256, "LSTM_LAYERS": 2, "BIDIRECTIONAL": False, "DROPOUT": 0.2, "LR": 8e-4, "BATCH_SIZE": 32},
+    # E) Tiny LR increase
+    {"LSTM_HIDDEN": 64, "LSTM_LAYERS": 2, "BIDIRECTIONAL": True, "DROPOUT": 0.2, "LR": 1.2e-3, "BATCH_SIZE": 32},
+
+    # F) Same model, larger batch (sometimes improves generalization)
+    {"LSTM_HIDDEN": 64, "LSTM_LAYERS": 2, "BIDIRECTIONAL": True, "DROPOUT": 0.2, "LR": 1e-3, "BATCH_SIZE": 64},
 ]
 
 
@@ -380,7 +377,7 @@ def train_one_run(
         total = 0
         correct = 0
 
-        for xb, lengths, yb in train_loader:
+        for xb, lengths, yb in tqdm(train_loader, desc=f"Train ep {ep}/{MAX_EPOCHS}", leave=False):
             xb = xb.to(device=device, dtype=torch.float32)
             lengths = lengths.to(device=device)
             yb = yb.to(device=device, dtype=torch.long)
@@ -408,7 +405,7 @@ def train_one_run(
         v_correct = 0
 
         with torch.no_grad():
-            for xb, lengths, yb in val_loader:
+            for xb, lengths, yb in tqdm(val_loader, desc=f"Val   ep {ep}/{MAX_EPOCHS}", leave=False):
                 xb = xb.to(device=device, dtype=torch.float32)
                 lengths = lengths.to(device=device)
                 yb = yb.to(device=device, dtype=torch.long)
@@ -468,7 +465,7 @@ def predict(model: nn.Module, X_list: List[np.ndarray], batch_size: int, device:
 
     preds: List[np.ndarray] = []
     with torch.no_grad():
-        for xb, lengths, _ in loader:
+        for xb, lengths, _ in tqdm(loader, desc="Predict", leave=False):
             xb = xb.to(device=device, dtype=torch.float32)
             lengths = lengths.to(device=device)
             logits = model(xb, lengths)

@@ -38,7 +38,7 @@ from torch.utils.data import DataLoader, Dataset
 # Paths / labels
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 NPZ_ROOT = PROJECT_ROOT / "data" / "poses_npz"
-RESULTS_DIR = PROJECT_ROOT / "results" / "lstm_results" / "round_3"
+RESULTS_DIR = PROJECT_ROOT / "results" / "lstm_results" / "final_model"
 
 LABELS: Dict[str, int] = {
     "boxing": 0,
@@ -69,13 +69,13 @@ TEST_SIZE = 0.2
 VAL_SPLIT = 0.15  # split from train only
 
 # IMPORTANT: for final model training set this None
-MAX_TRAIN_PER_CLASS: Optional[int] = 60  # None = use all train sequences
+MAX_TRAIN_PER_CLASS: Optional[int] = None  # None = use all train sequences
 
 # LSTM model hyperparams (single run)
-LSTM_HIDDEN = 128
+LSTM_HIDDEN = 64
 LSTM_LAYERS = 2
-BIDIRECTIONAL = False
-DROPOUT = 0.2  # applied between LSTM layers (if LSTM_LAYERS>1)
+BIDIRECTIONAL = True
+DROPOUT = 0.1  # applied between LSTM layers (if LSTM_LAYERS>1)
 
 # Training hyperparams
 BATCH_SIZE = 32
@@ -86,28 +86,26 @@ EARLY_STOPPING_PATIENCE = 20
 GRAD_CLIP_NORM = 5.0
 
 # Multi-run toggle (start False; once single run works, set True)
-RUN_HYPERPARAM_MULTI_RUN = True
+RUN_HYPERPARAM_MULTI_RUN = False
 
 # Hyperparameter sweep (ONLY used if RUN_HYPERPARAM_MULTI_RUN=True)
 # Keep list small; LSTM training is heavier than MLP.
 HYPERPARAM_SWEEP = [
-    # A) Current champion
-    {"LSTM_HIDDEN": 64, "LSTM_LAYERS": 2, "BIDIRECTIONAL": True, "DROPOUT": 0.2, "LR": 1e-3, "BATCH_SIZE": 32},
+  # Current WINNER
+  {"LSTM_HIDDEN": 64,  "LSTM_LAYERS": 2, "BIDIRECTIONAL": True, "DROPOUT": 0.10, "LR": 1e-3,  "BATCH_SIZE": 32},
 
-    # B) Slightly less dropout (sometimes 0.2 is too strong)
-    {"LSTM_HIDDEN": 64, "LSTM_LAYERS": 2, "BIDIRECTIONAL": True, "DROPOUT": 0.1, "LR": 1e-3, "BATCH_SIZE": 32},
+  # Slight dropout micro-search around best
+  {"LSTM_HIDDEN": 64,  "LSTM_LAYERS": 2, "BIDIRECTIONAL": True, "DROPOUT": 0.08, "LR": 1e-3,  "BATCH_SIZE": 32},
+  {"LSTM_HIDDEN": 64,  "LSTM_LAYERS": 2, "BIDIRECTIONAL": True, "DROPOUT": 0.12, "LR": 1e-3,  "BATCH_SIZE": 32},
+  {"LSTM_HIDDEN": 64,  "LSTM_LAYERS": 2, "BIDIRECTIONAL": True, "DROPOUT": 0.15, "LR": 1e-3,  "BATCH_SIZE": 32},
 
-    # C) Slightly more dropout (check regularization sweet spot)
-    {"LSTM_HIDDEN": 64, "LSTM_LAYERS": 2, "BIDIRECTIONAL": True, "DROPOUT": 0.3, "LR": 1e-3, "BATCH_SIZE": 32},
+  # Capacity bump (often helps running vs jogging)
+  {"LSTM_HIDDEN": 96,  "LSTM_LAYERS": 2, "BIDIRECTIONAL": True, "DROPOUT": 0.10, "LR": 1e-3,  "BATCH_SIZE": 32},
+  {"LSTM_HIDDEN": 128, "LSTM_LAYERS": 2, "BIDIRECTIONAL": True, "DROPOUT": 0.10, "LR": 1e-3,  "BATCH_SIZE": 32},
 
-    # D) Tiny LR decrease (for BiLSTM stability)
-    {"LSTM_HIDDEN": 64, "LSTM_LAYERS": 2, "BIDIRECTIONAL": True, "DROPOUT": 0.2, "LR": 8e-4, "BATCH_SIZE": 32},
-
-    # E) Tiny LR increase
-    {"LSTM_HIDDEN": 64, "LSTM_LAYERS": 2, "BIDIRECTIONAL": True, "DROPOUT": 0.2, "LR": 1.2e-3, "BATCH_SIZE": 32},
-
-    # F) Same model, larger batch (sometimes improves generalization)
-    {"LSTM_HIDDEN": 64, "LSTM_LAYERS": 2, "BIDIRECTIONAL": True, "DROPOUT": 0.2, "LR": 1e-3, "BATCH_SIZE": 64},
+  # LR micro-bracket (keep best dropout)
+  {"LSTM_HIDDEN": 64,  "LSTM_LAYERS": 2, "BIDIRECTIONAL": True, "DROPOUT": 0.10, "LR": 9e-4,  "BATCH_SIZE": 32},
+  {"LSTM_HIDDEN": 64,  "LSTM_LAYERS": 2, "BIDIRECTIONAL": True, "DROPOUT": 0.10, "LR": 1.1e-3,"BATCH_SIZE": 32},
 ]
 
 
@@ -331,7 +329,9 @@ def train_one_run(
     class_w = compute_class_weights(y_train, num_classes)
     loss_fn = nn.CrossEntropyLoss(weight=torch.tensor(class_w, device=device))
 
-    opt = torch.optim.AdamW(model.parameters(), lr=float(cfg["LR"]), weight_decay=WEIGHT_DECAY)
+    wd = float(cfg.get("WEIGHT_DECAY", WEIGHT_DECAY))
+    opt = torch.optim.AdamW(model.parameters(), lr=float(cfg["LR"]), weight_decay=wd)
+
 
     # Dataloader determinism: generator + worker_init_fn
     g = torch.Generator()
@@ -386,8 +386,9 @@ def train_one_run(
             logits = model(xb, lengths)
             loss = loss_fn(logits, yb)
             loss.backward()
-            if GRAD_CLIP_NORM is not None:
-                nn.utils.clip_grad_norm_(model.parameters(), GRAD_CLIP_NORM)
+            clip = cfg.get("GRAD_CLIP_NORM", GRAD_CLIP_NORM)
+            if clip is not None:
+                nn.utils.clip_grad_norm_(model.parameters(), float(clip))
             opt.step()
 
             total_loss += float(loss.item()) * xb.size(0)
@@ -757,9 +758,9 @@ def main() -> None:
             "MAX_TRAIN_PER_CLASS": MAX_TRAIN_PER_CLASS,
             "test_size": TEST_SIZE,
             "val_split": VAL_SPLIT,
-            "weight_decay": WEIGHT_DECAY,
+            "weight_decay": float(cfg.get("WEIGHT_DECAY", WEIGHT_DECAY)),
+            "grad_clip_norm": float(cfg.get("GRAD_CLIP_NORM", GRAD_CLIP_NORM)) if cfg.get("GRAD_CLIP_NORM", GRAD_CLIP_NORM) is not None else None,
             "early_stopping_patience": EARLY_STOPPING_PATIENCE,
-            "grad_clip_norm": GRAD_CLIP_NORM,
 
             "LSTM_HIDDEN": int(cfg["LSTM_HIDDEN"]),
             "LSTM_LAYERS": int(cfg["LSTM_LAYERS"]),

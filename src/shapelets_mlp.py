@@ -79,46 +79,45 @@ RUN_HYPERPARAM_MULTI_RUN = True #True runs multi-run test, False runs with SINGL
 # Keep this list small to avoid long runtime. or the runnnsss foreveeeerrrr
 HYPERPARAM_SWEEP = [
 
-    # 1) Control: your best-known baseline
+    # 1) Control (keep this to compare every round)
     {"NUM_SHAPELETS": 64, "LEN_MIN": 40, "LEN_MAX": 80, "MAX_TRAIN_PER_CLASS": 60,
      "MLP_HIDDEN": (256, 128), "MLP_LR": 1e-3, "MLP_MAX_ITER": 200, "USE_CONF": True},
 
-    # 2-4) Shallower vs slightly different width (test if 2-layer is even necessary)
+    # 2-7) Micro LR search around 1e-3 (this is where your best is living)
     {"NUM_SHAPELETS": 64, "LEN_MIN": 40, "LEN_MAX": 80, "MAX_TRAIN_PER_CLASS": 60,
-     "MLP_HIDDEN": (256,), "MLP_LR": 1e-3, "MLP_MAX_ITER": 200, "USE_CONF": True},
+     "MLP_HIDDEN": (256, 128), "MLP_LR": 9e-4, "MLP_MAX_ITER": 200, "USE_CONF": True},
 
     {"NUM_SHAPELETS": 64, "LEN_MIN": 40, "LEN_MAX": 80, "MAX_TRAIN_PER_CLASS": 60,
-     "MLP_HIDDEN": (512,), "MLP_LR": 1e-3, "MLP_MAX_ITER": 200, "USE_CONF": True},
+     "MLP_HIDDEN": (256, 128), "MLP_LR": 9.5e-4, "MLP_MAX_ITER": 200, "USE_CONF": True},
 
     {"NUM_SHAPELETS": 64, "LEN_MIN": 40, "LEN_MAX": 80, "MAX_TRAIN_PER_CLASS": 60,
-     "MLP_HIDDEN": (1024,), "MLP_LR": 1e-3, "MLP_MAX_ITER": 200, "USE_CONF": True},
-
-    # 5-8) Two-layer capacity variations around the baseline
-    {"NUM_SHAPELETS": 64, "LEN_MIN": 40, "LEN_MAX": 80, "MAX_TRAIN_PER_CLASS": 60,
-     "MLP_HIDDEN": (128, 64), "MLP_LR": 1e-3, "MLP_MAX_ITER": 200, "USE_CONF": True},
+     "MLP_HIDDEN": (256, 128), "MLP_LR": 1.05e-3, "MLP_MAX_ITER": 200, "USE_CONF": True},
 
     {"NUM_SHAPELETS": 64, "LEN_MIN": 40, "LEN_MAX": 80, "MAX_TRAIN_PER_CLASS": 60,
-     "MLP_HIDDEN": (256, 64), "MLP_LR": 1e-3, "MLP_MAX_ITER": 200, "USE_CONF": True},
+     "MLP_HIDDEN": (256, 128), "MLP_LR": 1.1e-3, "MLP_MAX_ITER": 200, "USE_CONF": True},
 
     {"NUM_SHAPELETS": 64, "LEN_MIN": 40, "LEN_MAX": 80, "MAX_TRAIN_PER_CLASS": 60,
-     "MLP_HIDDEN": (512, 128), "MLP_LR": 1e-3, "MLP_MAX_ITER": 200, "USE_CONF": True},
+     "MLP_HIDDEN": (256, 128), "MLP_LR": 1.15e-3, "MLP_MAX_ITER": 200, "USE_CONF": True},
 
     {"NUM_SHAPELETS": 64, "LEN_MIN": 40, "LEN_MAX": 80, "MAX_TRAIN_PER_CLASS": 60,
-     "MLP_HIDDEN": (512, 256), "MLP_LR": 1e-3, "MLP_MAX_ITER": 200, "USE_CONF": True},
+     "MLP_HIDDEN": (256, 128), "MLP_LR": 1.3e-3, "MLP_MAX_ITER": 200, "USE_CONF": True},
 
-    # 9-10) Three-layer test (sometimes helps fine decision boundaries)
+    # 8-12) “Near-capacity” nudges (not the big jumps that already failed)
     {"NUM_SHAPELETS": 64, "LEN_MIN": 40, "LEN_MAX": 80, "MAX_TRAIN_PER_CLASS": 60,
-     "MLP_HIDDEN": (256, 128, 64), "MLP_LR": 1e-3, "MLP_MAX_ITER": 200, "USE_CONF": True},
-
-    {"NUM_SHAPELETS": 64, "LEN_MIN": 40, "LEN_MAX": 80, "MAX_TRAIN_PER_CLASS": 60,
-     "MLP_HIDDEN": (512, 256, 128), "MLP_LR": 1e-3, "MLP_MAX_ITER": 200, "USE_CONF": True},
-
-    # 11-12) Small LR nudges around 1e-3 (since 5e-4 and 2e-3 were slightly worse)
-    {"NUM_SHAPELETS": 64, "LEN_MIN": 40, "LEN_MAX": 80, "MAX_TRAIN_PER_CLASS": 60,
-     "MLP_HIDDEN": (256, 128), "MLP_LR": 8e-4, "MLP_MAX_ITER": 200, "USE_CONF": True},
+     "MLP_HIDDEN": (256, 192), "MLP_LR": 1e-3, "MLP_MAX_ITER": 200, "USE_CONF": True},
 
     {"NUM_SHAPELETS": 64, "LEN_MIN": 40, "LEN_MAX": 80, "MAX_TRAIN_PER_CLASS": 60,
-     "MLP_HIDDEN": (256, 128), "MLP_LR": 1.2e-3, "MLP_MAX_ITER": 200, "USE_CONF": True},
+     "MLP_HIDDEN": (320, 160), "MLP_LR": 1e-3, "MLP_MAX_ITER": 200, "USE_CONF": True},
+
+    {"NUM_SHAPELETS": 64, "LEN_MIN": 40, "LEN_MAX": 80, "MAX_TRAIN_PER_CLASS": 60,
+     "MLP_HIDDEN": (384, 192), "MLP_LR": 1e-3, "MLP_MAX_ITER": 200, "USE_CONF": True},
+
+    {"NUM_SHAPELETS": 64, "LEN_MIN": 40, "LEN_MAX": 80, "MAX_TRAIN_PER_CLASS": 60,
+     "MLP_HIDDEN": (256, 256), "MLP_LR": 1e-3, "MLP_MAX_ITER": 200, "USE_CONF": True},
+
+    # A combo that sometimes helps if 1e-3 is “slightly too hot” for widened nets
+    {"NUM_SHAPELETS": 64, "LEN_MIN": 40, "LEN_MAX": 80, "MAX_TRAIN_PER_CLASS": 60,
+     "MLP_HIDDEN": (320, 160), "MLP_LR": 9.5e-4, "MLP_MAX_ITER": 200, "USE_CONF": True},
 ]
 
 

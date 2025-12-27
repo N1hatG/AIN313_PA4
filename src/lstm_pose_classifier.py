@@ -74,7 +74,7 @@ MAX_TRAIN_PER_CLASS: Optional[int] = 60  # None = use all train sequences
 LSTM_HIDDEN = 128
 LSTM_LAYERS = 2
 BIDIRECTIONAL = False
-DROPOUT = 0.2  # applied between LSTM layers (only if LSTM_LAYERS>1)
+DROPOUT = 0.2  # applied between LSTM layers (if LSTM_LAYERS>1)
 
 # Training hyperparams
 BATCH_SIZE = 32
@@ -114,9 +114,7 @@ HYPERPARAM_SWEEP = [
 ]
 
 
-# ---------------------------
-# Reproducibility / seeding
-# ---------------------------
+# Seeding
 def torch_set_seed(seed: int) -> None:
     """
     Strong seeding + deterministic settings.
@@ -140,7 +138,7 @@ def torch_set_seed(seed: int) -> None:
     except Exception:
         pass
 
-    # Optional: for some CUDA ops determinism
+    # for some CUDA ops determinism
     os.environ.setdefault("CUBLAS_WORKSPACE_CONFIG", ":16:8")
 
 
@@ -153,9 +151,7 @@ def seed_worker(worker_id: int) -> None:
     random.seed(worker_seed)
 
 
-# ---------------------------
 # Data loading
-# ---------------------------
 def list_npz_files() -> List[Path]:
     files: List[Path] = []
     for cls in LABELS.keys():
@@ -262,9 +258,7 @@ def pad_collate(batch):
     return xb, lengths, yb
 
 
-# ---------------------------
 # Model
-# ---------------------------
 class LSTMClassifier(nn.Module):
     def __init__(
         self,
@@ -316,9 +310,7 @@ def compute_class_weights(y: np.ndarray, num_classes: int) -> np.ndarray:
     return w.astype(np.float32)
 
 
-# ---------------------------
 # Training / evaluation
-# ---------------------------
 def train_one_run(
     X_train_list: List[np.ndarray],
     y_train: np.ndarray,
@@ -486,9 +478,7 @@ def predict(model: nn.Module, X_list: List[np.ndarray], batch_size: int, device:
     return np.concatenate(preds, axis=0)
 
 
-# ---------------------------
-# Results helpers (same style)
-# ---------------------------
+# Results helpers
 def per_class_table(y_true: np.ndarray, y_pred: np.ndarray) -> str:
     lines = []
     header = f"{'class':<14} {'prec':>6} {'rec':>6} {'f1':>6} {'supp':>6}"
@@ -609,9 +599,34 @@ def save_results_txt(
         f.write("\n \n")
 
 
-# ---------------------------
+
+def labels_from_npz_paths(file_paths: List[Path]) -> np.ndarray:
+    """Return y labels by reading each NPZ's internal label."""
+    ys: List[int] = []
+    for p in file_paths:
+        d = np.load(p, allow_pickle=True)
+        ys.append(int(d["label"]))
+    return np.array(ys, dtype=np.int32)
+
+
+def sanity_check_folder_vs_npz_labels(file_paths: List[Path]) -> None:
+    """Optional: prints mismatches between folder label and NPZ label."""
+    bad = []
+    for p in file_paths:
+        d = np.load(p, allow_pickle=True)
+        y_npz = int(d["label"])
+        y_folder = LABELS[p.parent.name]
+        if y_npz != y_folder:
+            bad.append((str(p), y_npz, y_folder))
+    if bad:
+        print(f"[WARNING] Found {len(bad)} label mismatches (NPZ vs folder). Example:")
+        print("  path:", bad[0][0])
+        print("  npz_label:", bad[0][1], "folder_label:", bad[0][2])
+    else:
+        print("[OK] No label mismatches between NPZ and folder.")
+
+
 # Main
-# ---------------------------
 def main() -> None:
     torch_set_seed(RANDOM_SEED)
 
@@ -619,9 +634,11 @@ def main() -> None:
     print(f"Device: {device} | CUDA available: {torch.cuda.is_available()}")
 
     all_files = list_npz_toggle_check()
-    y_for_split = np.array([LABELS[p.parent.name] for p in all_files], dtype=np.int32)
+    sanity_check_folder_vs_npz_labels(all_files)
+    # Use NPZ labels as the source of truth for stratification (matches training labels)
+    y_for_split = labels_from_npz_paths(all_files)
 
-    # IMPORTANT: ONE fixed split for all runs
+    # ONE fixed split for all runs
     train_files, test_files = train_test_split(
         all_files,
         test_size=TEST_SIZE,

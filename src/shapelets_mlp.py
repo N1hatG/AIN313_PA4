@@ -38,7 +38,7 @@ from torch.utils.data import DataLoader, TensorDataset
 # Paths / labels
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 NPZ_ROOT = PROJECT_ROOT / "data" / "poses_npz"
-RESULTS_DIR = PROJECT_ROOT / "shapelets_mlp_results" / "round_3_mlp_tuning"
+RESULTS_DIR = PROJECT_ROOT / "shapelets_mlp_results" / "final_model"
 
 LABELS: Dict[str, int] = {
     "boxing": 0,
@@ -63,17 +63,17 @@ SHORT_LABELS = {
 # SIGNLE RUN HYPERPARAMS
 RANDOM_SEED = 42
 
-NUM_SHAPELETS = 128
-LEN_MIN = 25
-LEN_MAX = 60
-MAX_TRAIN_PER_CLASS = 100  # cap train size for speed; set None for full run later
+NUM_SHAPELETS = 64
+LEN_MIN = 40
+LEN_MAX = 80
+MAX_TRAIN_PER_CLASS = None  # cap train size for speed; set None for full run later
 
 MLP_HIDDEN = (256, 128)
-MLP_MAX_ITER = 80
-MLP_LR = 1e-3
+MLP_MAX_ITER = 200
+MLP_LR = 1.1e-3
 
-USE_CONF = False  # keep False for speed (D=50). True => D=75
-RUN_HYPERPARAM_MULTI_RUN = True #True runs multi-run test, False runs with SINGLE RUN PARAMS ABOVE
+USE_CONF = True  # keep False for speed (D=50). True => D=75
+RUN_HYPERPARAM_MULTI_RUN = False #True runs multi-run test, False runs with SINGLE RUN PARAMS ABOVE
 
 # Hyperparameter multi-run configs
 # Keep this list small to avoid long runtime. or the runnnsss foreveeeerrrr

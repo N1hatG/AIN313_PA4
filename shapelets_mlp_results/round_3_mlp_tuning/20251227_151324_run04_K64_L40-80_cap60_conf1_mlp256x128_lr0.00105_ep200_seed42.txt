@@ -1,0 +1,144 @@
+=== Shapelets + MLP (Random Shapelet Transform) ===
+ 
+[Hyperparameters]
+{
+  "RANDOM_SEED": 42,
+  "USE_CONF": true,
+  "NUM_SHAPELETS": 64,
+  "LEN_MIN": 40,
+  "LEN_MAX": 80,
+  "MAX_TRAIN_PER_CLASS": 60,
+  "MLP_HIDDEN": [
+    256,
+    128
+  ],
+  "MLP_MAX_ITER": 200,
+  "MLP_LR": 0.00105,
+  "test_size": 0.2,
+  "val_split": 0.15,
+  "batch_size": 128,
+  "weight_decay": 0.0001,
+  "dropout": 0.2,
+  "early_stopping_patience": 12,
+  "BEST_VAL_ACC": 0.7592592592592593,
+  "BEST_EPOCH": 19,
+  "EPOCHS_RUN": 31,
+  "CHECKPOINT_PATH": "C:\\Users\\User\\Desktop\\AIN313_PA4\\shapelets_mlp_results\\round_3_mlp_tuning\\20251227_151324_run04_K64_L40-80_cap60_conf1_mlp256x128_lr0.00105_ep200_seed42.pt",
+  "MACRO_F1": 0.6534593970516781,
+  "WEIGHTED_F1": 0.6534593970516781,
+  "TOP_CONFUSIONS": "running -> jogging : 12\nrunning -> walking : 5\njogging -> walking : 5\nhandwaving -> handclapping : 5\nwalking -> jogging : 4\njogging -> running : 4\nwalking -> running : 3\nhandclapping -> handwaving : 2",
+  "PER_CLASS_TABLE": "class            prec    rec     f1   supp\n------------------------------------------\nboxing          1.000  1.000  1.000     20\nhandclapping    0.783  0.900  0.837     20\nhandwaving      0.882  0.750  0.811     20\njogging         0.407  0.550  0.468     20\nrunning         0.300  0.150  0.200     20\nwalking         0.565  0.650  0.605     20",
+  "TRAINING_CURVES": "epoch    tr_loss   tr_acc    va_loss   va_acc\n----------------------------------------------\n    1     1.7474   0.2026     1.5990   0.3333\n    2     1.5372   0.4052     1.4419   0.3519\n    3     1.3778   0.4216     1.2991   0.4630\n    4     1.2305   0.4771     1.1761   0.5185\n    5     1.1261   0.5686     1.0759   0.6481\n    6     1.0539   0.5752     0.9957   0.6296\n    7     0.9787   0.5980     0.9326   0.6852\n    8     0.9209   0.6111     0.8822   0.6852\n    9     0.9024   0.5980     0.8067   0.7037\n   10     0.8637   0.6078     0.7475   0.6852\n   11     0.7924   0.6536     0.7130   0.6852\n   12     0.8018   0.6373     0.6972   0.7037\n   13     0.7396   0.6863     0.7023   0.7037\n   14     0.7706   0.6601     0.6607   0.6852\n   15     0.7383   0.6503     0.6421   0.7037\n   16     0.6958   0.7190     0.6197   0.6852\n   17     0.7030   0.6732     0.6525   0.6481\n   18     0.6718   0.7190     0.6397   0.6852\n   19     0.6696   0.7157     0.6090   0.7593\n   20     0.6606   0.6928     0.5970   0.7222\n   21     0.6339   0.7059     0.5836   0.7037\n   22     0.6135   0.7582     0.5849   0.7037\n   23     0.6210   0.7386     0.5739   0.7407\n   24     0.5883   0.7647     0.5700   0.7407\n   25     0.5794   0.7549     0.5606   0.7407\n   26     0.5779   0.7582     0.5610   0.6852\n   27     0.5700   0.7582     0.5526   0.7407\n   28     0.5653   0.7647     0.5601   0.7593\n   29     0.5419   0.7680     0.5477   0.7593\n   30     0.5269   0.7680     0.5422   0.7222\n   31     0.5317   0.7974     0.5440   0.7593"
+}
+ 
+[Split / Data]
+{
+  "total_files": 599,
+  "train_files_before_cap": 479,
+  "test_files": 120,
+  "train_sequences_after_cap": 360,
+  "class_names": [
+    "boxing",
+    "handclapping",
+    "handwaving",
+    "jogging",
+    "running",
+    "walking"
+  ]
+}
+ 
+[Timings (seconds)]
+{
+  "load_data": 0.6449,
+  "sample_shapelets": 0.0035,
+  "transform_train": 326.856,
+  "transform_test": 94.649,
+  "mlp_fit": 0.294,
+  "eval": 0.006,
+  "total": 422.4576
+}
+ 
+[Accuracy]
+0.666667
+
+[Confusion Matrix]
+            BX    HC    HW    JG    RN    WK
+BX     |    20     0     0     0     0     0
+HC     |     0    18     2     0     0     0
+HW     |     0     5    15     0     0     0
+JG     |     0     0     0    11     4     5
+RN     |     0     0     0    12     3     5
+WK     |     0     0     0     4     3    13
+ 
+[Classification Report]
+              precision    recall  f1-score   support
+
+      boxing     1.0000    1.0000    1.0000        20
+handclapping     0.7826    0.9000    0.8372        20
+  handwaving     0.8824    0.7500    0.8108        20
+     jogging     0.4074    0.5500    0.4681        20
+     running     0.3000    0.1500    0.2000        20
+     walking     0.5652    0.6500    0.6047        20
+
+    accuracy                         0.6667       120
+   macro avg     0.6563    0.6667    0.6535       120
+weighted avg     0.6563    0.6667    0.6535       120
+
+Macro F1: 0.6534593970516781
+Weighted F1: 0.6534593970516781
+ 
+[Top Confusions]
+running -> jogging : 12
+running -> walking : 5
+jogging -> walking : 5
+handwaving -> handclapping : 5
+walking -> jogging : 4
+jogging -> running : 4
+walking -> running : 3
+handclapping -> handwaving : 2
+ 
+[Per-class Table]
+class            prec    rec     f1   supp
+------------------------------------------
+boxing          1.000  1.000  1.000     20
+handclapping    0.783  0.900  0.837     20
+handwaving      0.882  0.750  0.811     20
+jogging         0.407  0.550  0.468     20
+running         0.300  0.150  0.200     20
+walking         0.565  0.650  0.605     20
+ 
+[Training Curves]
+epoch    tr_loss   tr_acc    va_loss   va_acc
+----------------------------------------------
+    1     1.7474   0.2026     1.5990   0.3333
+    2     1.5372   0.4052     1.4419   0.3519
+    3     1.3778   0.4216     1.2991   0.4630
+    4     1.2305   0.4771     1.1761   0.5185
+    5     1.1261   0.5686     1.0759   0.6481
+    6     1.0539   0.5752     0.9957   0.6296
+    7     0.9787   0.5980     0.9326   0.6852
+    8     0.9209   0.6111     0.8822   0.6852
+    9     0.9024   0.5980     0.8067   0.7037
+   10     0.8637   0.6078     0.7475   0.6852
+   11     0.7924   0.6536     0.7130   0.6852
+   12     0.8018   0.6373     0.6972   0.7037
+   13     0.7396   0.6863     0.7023   0.7037
+   14     0.7706   0.6601     0.6607   0.6852
+   15     0.7383   0.6503     0.6421   0.7037
+   16     0.6958   0.7190     0.6197   0.6852
+   17     0.7030   0.6732     0.6525   0.6481
+   18     0.6718   0.7190     0.6397   0.6852
+   19     0.6696   0.7157     0.6090   0.7593
+   20     0.6606   0.6928     0.5970   0.7222
+   21     0.6339   0.7059     0.5836   0.7037
+   22     0.6135   0.7582     0.5849   0.7037
+   23     0.6210   0.7386     0.5739   0.7407
+   24     0.5883   0.7647     0.5700   0.7407
+   25     0.5794   0.7549     0.5606   0.7407
+   26     0.5779   0.7582     0.5610   0.6852
+   27     0.5700   0.7582     0.5526   0.7407
+   28     0.5653   0.7647     0.5601   0.7593
+   29     0.5419   0.7680     0.5477   0.7593
+   30     0.5269   0.7680     0.5422   0.7222
+   31     0.5317   0.7974     0.5440   0.7593
+ 

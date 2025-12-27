@@ -9,8 +9,10 @@ from sklearn.metrics import accuracy_score, classification_report, confusion_mat
 import seaborn as sns
 import matplotlib.pyplot as plt
 import time
+from pathlib import Path
 
-DATA_PATH = "C:/Users/Umay/Downloads/poses_npz/poses_npz/" 
+BASE_DIR = Path(__file__).resolve().parent
+DATA_PATH = BASE_DIR / "data" / "poses_npz"
 TEST_SIZE = 0.2
 RANDOM_SEED = 42
 

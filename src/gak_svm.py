@@ -100,27 +100,33 @@ X_scaled = scaler.fit_transform(X_formatted)
 X_train_g, X_test_g, y_train_g, y_test_g = train_test_split(X_scaled, y, test_size=0.2, random_state=42, stratify=y)
 
 # GAK + SVM training (with wider gamma range)
-# leaving gamma="auto" is best; tslearn scales according to the data.
-print("\nGAK+SVM training is starting (without padding)")
-start_time = time.time()
+C_values = [1.0, 10.0, 100.0]
+gamma_values = ["auto", 0.1, 1.0]
 
-# increasing the C parameter a bit to strengthen the penalty, leaving gamma on automatic.
-clf = TimeSeriesSVC(kernel="gak", C=10.0, gamma="auto", verbose=1)
-clf.fit(X_train_g, y_train_g)
+results = []
 
-# Test
-y_pred_g = clf.predict(X_test_g)
-acc_g = accuracy_score(y_test_g, y_pred_g)
+print(f"GAK+SVM Hiperparameter")
+print(f"combination number to be tested: {len(C_values) * len(gamma_values)}")
+print("-" * 50)
 
-print(f"\nTEST ACCURACY: %{acc_g * 100:.2f}")
-
-# visualization
-cm = confusion_matrix(y_test_g, y_pred_g)
-plt.figure(figsize=(8, 6))
-sns.heatmap(cm, annot=True, fmt='d', cmap='Greens',
-            xticklabels=['Box', 'Clap', 'Wave', 'Jog', 'Run', 'Walk'],
-            yticklabels=['Box', 'Clap', 'Wave', 'Jog', 'Run', 'Walk'])
-plt.title(f'GAK+SVM Accuracy: %{acc_g*100:.2f}')
-plt.xlabel('prediction')
-plt.ylabel('real value')
-plt.show()
+for c in C_values:
+    for g in gamma_values:
+        print(f"trying: C={c}, Gamma={g} ", end=" ")
+        start_time = time.time()
+        
+        clf = TimeSeriesSVC(kernel="gak", C=c, gamma=g, verbose=0)
+        
+        clf.fit(X_train_g, y_train_g)
+        
+        y_pred = clf.predict(X_test_g)
+        acc = accuracy_score(y_test_g, y_pred)
+        
+        elapsed = time.time() - start_time
+        print(f"result: %{acc*100:.2f} (Süre: {elapsed:.1f} sn)")
+        
+        # Save the result
+        results.append({
+            'C': c,
+            'Gamma': g,
+            'Accuracy': acc
+        })

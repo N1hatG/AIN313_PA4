@@ -1,0 +1,35 @@
+To measure the similarity between time series data, the Global Alignment Kernel (GAK), which is robust against temporal shifts, was used instead of the standard Euclidean distance. 
+
+Data Structure: Since padding (adding zeros) negatively affects GAK performance, the variable-length data format of the tslearn library was used.
+Downsampling: To reduce computational cost O(N^2), videos were downsampled by a factor of 5 (1 frame every 5 frames) and fed to the model. 
+Scaling: Due to the sensitivity of SVM models to distance calculations, all data was normalized to the 0-1 range using TimeSeriesScalerMinMax. 
+
+Hyperparameter Analysis (Ablation Study) 
+A detailed Grid Search was performed on the Regularization (C) and Kernel Width (Gamma) parameters to optimize model performance. The results obtained are summarized in the following Heatmap and table: 
+Critical Effect of the Gamma Parameter: When fixed values (gamma=0.1 and gamma=1.0) were used, the model's success remained at 16.67% (random prediction) and 48.33%, respectively. This indicates that fixed gamma values cannot cover the variance of high-dimensional skeleton data (75 features). 
+
+When the gamma=‘auto’ option was used, a dramatic increase in accuracy rates was observed (in the range of 69% to 79%). The ‘auto’ mode yielded the most successful result because it performs dynamic scaling based on the median distance between time series in the dataset. 
+
+Effect of the C Parameter: 
+When Gamma is fixed to ‘auto’, performance improves as the C value increases.
+While accuracy is 69.17% for C=1.0, the highest accuracy of 79.17% is achieved at C=100.0, where the model's tolerance to errors is reduced (approaching the hard margin).
+
+Final Model Performance and Error Analysis
+The overall accuracy of the final model trained with the best parameters (C=100.0, Gamma=‘auto’) was measured as 79.17% on the test set. Examining the Confusion Matrix yielded the following results:
+
+Strong Classification:
+
+Boxing: 20/20 (100%) success.
+Handclapping: 19/20 success.
+
+GAK is successful in capturing distinct patterns in upper body movements.
+
+Misclassifications:
+
+The greatest confusion occurred between the Jogging, Running, and Walking classes.
+For example, 6 examples in the running class were misclassified as jogging, and 1 as walking. Similarly, the jogging class was also confused with running (5 examples).
+
+Reason: The GAK algorithm focuses on the shape of the movement. Running and walking are kinematically very similar “cyclical” movements; the fundamental difference between them is speed. The downsampling process and the flexible structure of GAK may have dampened this speed difference to some extent.
+
+Results
+The GAK+SVM method demonstrated a performance comparable to deep learning models such as CNN (79.17%) when the correct gamma scaling (auto) was applied. The model delivered excellent results, particularly for clearly distinct movements such as waving, boxing, and clapping, but struggled with locomotor movements (walking/running), which are variations of each other.

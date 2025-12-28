@@ -3,6 +3,7 @@
 
 Bu proje, videolardan OpenPose kütüphanesini kullanarak insan iskelet verilerini (keypoints) çıkarmak ve bu veriler üzerinden makine öğrenmesi yöntemleriyle aktivite tanıma gerçekleştirmek amacıyla geliştirilmiştir.
 
+Readme dosyasi update alıcaktır
 ---
 
 ## Proje Klasör Yapısı

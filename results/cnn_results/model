@@ -1,1 +1,121 @@
+[Split / Data]
+{
+  "total_files": 599,
+  "train_files_before_cap": 479,
+  "test_files": 120,
+  "max length video": 1456 frame
+  "train_sequences_after_cap": 479,
+  "class_names": [
+    "boxing",
+    "handclapping",
+    "handwaving",
+    "jogging",
+    "running",
+    "walking"
+  ]
+}
 
+
+Train data (X_train): (479, 1456, 75)
+Test data (X_test):   (120, 1456, 75)
+raw data size: 599
+
+CNN training
+Epoch [1/35], Loss: 1.3201, Test Acc: %56.67
+Epoch [2/35], Loss: 0.9403, Test Acc: %56.67
+Epoch [3/35], Loss: 0.8214, Test Acc: %70.00
+Epoch [4/35], Loss: 0.7400, Test Acc: %65.83
+Epoch [5/35], Loss: 0.6385, Test Acc: %72.50
+Epoch [6/35], Loss: 0.6020, Test Acc: %64.17
+Epoch [7/35], Loss: 0.5595, Test Acc: %72.50
+Epoch [8/35], Loss: 0.5314, Test Acc: %80.00
+Epoch [9/35], Loss: 0.4871, Test Acc: %69.17
+Epoch [10/35], Loss: 0.4917, Test Acc: %77.50
+Epoch [11/35], Loss: 0.4664, Test Acc: %70.83
+Epoch [12/35], Loss: 0.4069, Test Acc: %65.00
+Epoch [13/35], Loss: 0.3980, Test Acc: %72.50
+Epoch [14/35], Loss: 0.3538, Test Acc: %80.83
+Epoch [15/35], Loss: 0.3401, Test Acc: %81.67
+Epoch [16/35], Loss: 0.3555, Test Acc: %65.00
+Epoch [17/35], Loss: 0.3527, Test Acc: %77.50
+Epoch [18/35], Loss: 0.3026, Test Acc: %77.50
+Epoch [19/35], Loss: 0.3184, Test Acc: %78.33
+Epoch [20/35], Loss: 0.3017, Test Acc: %79.17
+Epoch [21/35], Loss: 0.2808, Test Acc: %75.00
+Epoch [22/35], Loss: 0.2570, Test Acc: %75.83
+Epoch [23/35], Loss: 0.2406, Test Acc: %66.67
+Epoch [24/35], Loss: 0.2479, Test Acc: %79.17
+Epoch [25/35], Loss: 0.2295, Test Acc: %78.33
+Epoch [26/35], Loss: 0.2322, Test Acc: %82.50
+Epoch [27/35], Loss: 0.2767, Test Acc: %74.17
+Epoch [28/35], Loss: 0.2080, Test Acc: %80.00
+Epoch [29/35], Loss: 0.1882, Test Acc: %82.50
+Epoch [30/35], Loss: 0.1870, Test Acc: %82.50
+Epoch [31/35], Loss: 0.2009, Test Acc: %78.33
+Epoch [32/35], Loss: 0.1886, Test Acc: %80.00
+Epoch [33/35], Loss: 0.1737, Test Acc: %78.33
+Epoch [34/35], Loss: 0.1872, Test Acc: %77.50
+Epoch [35/35], Loss: 0.1553, Test Acc: %78.33
+
+
+CNN classification report
+              precision    recall  f1-score   support
+
+           0       1.00      0.90      0.95        20
+           1       1.00      0.95      0.97        20
+           2       0.95      1.00      0.98        20
+           3       0.56      0.25      0.34        20
+           4       0.53      0.90      0.67        20
+           5       0.74      0.70      0.72        20
+
+    accuracy                           0.78       120
+   macro avg       0.80      0.78      0.77       120
+weighted avg       0.80      0.78      0.77       120
+
+Hyperparameters:
+Experiment: LR=0.001, Batch=16, Dropout=0.5
+Result: %78.33 Accuracy
+
+Experiment: LR=0.01, Batch=16, Dropout=0.5
+Result: %70.83 Accuracy
+
+Experiment: LR=0.001, Batch=64, Dropout=0.5
+Result: %81.67 Accuracy
+
+Experiment: LR=0.001, Batch=16, Dropout=0.1
+Result: %66.67 Accuracy
+
+-Result Table
+experiment name      | LR         | Batch      | Drop       | Accuracy  
+----------------------------------------------------------------------
+Baseline             | 0.001      | 16         | 0.5        | %78.33
+High LR (fast)       | 0.01       | 16         | 0.5        | %70.83
+High Batch           | 0.001      | 64         | 0.5        | %81.67
+Low Dropout          | 0.001      | 16         | 0.1        | %66.67
+
+
+
+Final CNN model training is starting (LR=0.001, Batch=64)
+Epoch 5/40 -> Loss: 0.7385 | Acc: %64.17
+Epoch 10/40 -> Loss: 0.4501 | Acc: %81.67
+Epoch 15/40 -> Loss: 0.3397 | Acc: %61.67
+Epoch 20/40 -> Loss: 0.2812 | Acc: %79.17
+Epoch 25/40 -> Loss: 0.2054 | Acc: %76.67
+Epoch 30/40 -> Loss: 0.1997 | Acc: %78.33
+Epoch 35/40 -> Loss: 0.1246 | Acc: %74.17
+Epoch 40/40 -> Loss: 0.0754 | Acc: %79.17
+
+
+Final classifition report
+              precision    recall  f1-score   support
+
+         Box       1.00      0.95      0.97        20
+        Clap       0.91      1.00      0.95        20
+        Wave       0.95      0.95      0.95        20
+         Jog       0.50      0.45      0.47        20
+         Run       0.61      0.55      0.58        20
+        Walk       0.74      0.85      0.79        20
+
+    accuracy                           0.79       120
+   macro avg       0.78      0.79      0.79       120
+weighted avg       0.78      0.79      0.79       120

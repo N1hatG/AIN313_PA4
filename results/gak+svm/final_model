@@ -1,1 +1,58 @@
+[Split / Data]
+{
+  "total_files": 599,
+  "train_files_before_cap": 479,
+  "test_files": 120,
+  "max length video": 1456 frame
+  "train_sequences_after_cap": 479,
+  "class_names": [
+    "boxing",
+    "handclapping",
+    "handwaving",
+    "jogging",
+    "running",
+    "walking"
+  ]
+}
+
+
+Train data (X_train): (479, 1456, 75)
+Test data (X_test):   (120, 1456, 75)
+raw data size: 599
+train set size: (479, 364, 75) (includes NaN)
+
+
+GAK+SVM Hiperparameter
+combination number to be tested: 9
+--------------------------------------------------
+trying: C=1.0, Gamma=auto  result: %69.17 (284.4 sn)
+trying: C=1.0, Gamma=0.1  result: %16.67 (296.8 sn)
+trying: C=1.0, Gamma=1.0  result: %48.33 (306.4 sn)
+trying: C=10.0, Gamma=auto  result: %77.50 (301.3 sn)
+trying: C=10.0, Gamma=0.1  result: %16.67 (301.8 sn)
+trying: C=10.0, Gamma=1.0  result: %48.33 (289.3 sn)
+trying: C=100.0, Gamma=auto  result: %79.17 (287.8 sn)
+trying: C=100.0, Gamma=0.1  result: %16.67 (293.6 sn)
+trying: C=100.0, Gamma=1.0  result: %48.33 (284.2 sn)
+
+
+Best parameters:
+C: 100.0
+Gamma: auto
+Final test accuracy: %79.17
+
+
+GAK+SVM classification report
+              precision    recall  f1-score   support
+
+         Box       0.95      1.00      0.98        20
+        Clap       0.79      0.95      0.86        20
+        Wave       0.94      0.75      0.83        20
+         Jog       0.57      0.60      0.59        20
+         Run       0.72      0.65      0.68        20
+        Walk       0.80      0.80      0.80        20
+
+    accuracy                           0.79       120
+   macro avg       0.80      0.79      0.79       120
+weighted avg       0.80      0.79      0.79       120
 
